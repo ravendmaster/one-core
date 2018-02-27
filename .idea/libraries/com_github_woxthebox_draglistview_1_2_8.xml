@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="com.github.woxthebox:draglistview-1.2.8">
+    <CLASSES>
+      <root url="file://C:/Users/Public/.gradle/caches/transforms-1/files-1.1/draglistview-1.2.8.aar/2344052bea98e9acd2d9690933891a15/res" />
+      <root url="jar://C:/Users/Public/.gradle/caches/transforms-1/files-1.1/draglistview-1.2.8.aar/2344052bea98e9acd2d9690933891a15/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.woxthebox/draglistview/1.2.8/55d409a329e4d3f80690aabf25974f1f12627ab6/draglistview-1.2.8-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

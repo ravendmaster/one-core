@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "606374760325",
+    "firebase_url": "https://onecore-e45d5.firebaseio.com",
+    "project_id": "onecore-e45d5",
+    "storage_bucket": "onecore-e45d5.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:606374760325:android:3359f4dd92ab7e1e",
+        "android_client_info": {
+          "package_name": "com.ravendmaster.onecore"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "606374760325-f5emmcedi3bg51f9luejtuvkubu0lm3h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3MfHFNa8Xmz73RjdskVNgJjl5jASuxJk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
