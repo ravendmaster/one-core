@@ -161,7 +161,7 @@ class ButtonsSet
         if (publishValues == null) return
 
         //StringBuffer s = new StringBuffer("asd zxc 123 sdf");
-        values = publishValues.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+        values = publishValues.split("\n".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         invalidate()
         requestLayout()
     }
@@ -179,7 +179,7 @@ class ButtonsSet
     fun getPublishValueByButtonIndex(index: Int): String {
         if (index >= values!!.size) return ""
         val value = values!![index]
-        val val_pres = value.split("\\|".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+        val val_pres = value.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         if(val_pres.size==0)return ""
         return val_pres[0].trim { it <= ' ' }
     }
@@ -187,7 +187,7 @@ class ButtonsSet
     fun getPresentationTextByButtonIndex(index: Int): String {
         if (index >= values!!.size) return ""
         val value = values!![index]
-        val val_pres = value.split("\\|".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+        val val_pres = value.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         return if (val_pres.size >= 2) {
             val_pres[1]
         } else val_pres[0].trim { it <= ' ' }

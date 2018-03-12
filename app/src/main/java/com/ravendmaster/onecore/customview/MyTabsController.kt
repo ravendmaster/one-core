@@ -12,17 +12,19 @@ import android.view.View
 
 import com.ravendmaster.onecore.activity.MainActivity
 import com.ravendmaster.onecore.service.AppSettings
+import com.ravendmaster.onecore.service.Presenter
 
 import java.util.ArrayList
 
 class MyTabsController(context: Context, attrs: AttributeSet) : View(context, attrs) {
+
     internal var bounds = Rect()
 
     internal var x_dispose = 0
 
     val tabs = ArrayList<MyTab>()
 
-    internal var selectedScreenTabIndex: Int? = null
+    private var selectedScreenTabIndex: Int = 0
 
     internal var widget_width: Int = 0
 
@@ -52,7 +54,7 @@ class MyTabsController(context: Context, attrs: AttributeSet) : View(context, at
             selectedScreenTabIndex = 0
         } else {
             //Log.d("dashboard orders", "---------------------");
-            val tabsCollection = MainActivity.presenter.tabs
+            val tabsCollection = MainActivity.getPresenter().tabs
             if (tabsCollection != null) {
                 for (tab in tabsCollection.items) {
                     //Log.d("dashboard orders", "" + tab.id + "  " + tab.name);
@@ -63,7 +65,7 @@ class MyTabsController(context: Context, attrs: AttributeSet) : View(context, at
 
             /*
             AppSettings settings = AppSettings.getInstance();
-            settings.readFromPrefs(getContext());
+            settings.readPrefsFromDisk(getContext());
             tabs.add(new MyTab(settings.tabs[0], 0));
             if (!settings.tabs[1].equals("")) tabs.add(new MyTab(settings.tabs[1], 1));
             if (!settings.tabs[2].equals("")) tabs.add(new MyTab(settings.tabs[2], 2));
@@ -71,7 +73,7 @@ class MyTabsController(context: Context, attrs: AttributeSet) : View(context, at
             */
 
 
-            selectedScreenTabIndex = MainActivity.presenter.screenActiveTabIndex
+            selectedScreenTabIndex = MainActivity.getPresenter().screenActiveTabIndex
         }
 
         invalidate()
@@ -168,7 +170,7 @@ class MyTabsController(context: Context, attrs: AttributeSet) : View(context, at
 
                     playSoundEffect(SoundEffectConstants.CLICK)
                     //MyTab selectedTab = tabs.get(selectedScreenTabIndex);
-                    MainActivity.presenter.onTabPressed(selectedScreenTabIndex!!)
+                    MainActivity.getPresenter().onTabPressed(selectedScreenTabIndex!!)
                     //Log.d("ashboard orders", "tap " + selectedScreenTabIndex);
                     invalidate()
                 }

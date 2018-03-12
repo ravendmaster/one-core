@@ -3,10 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../moquette/broker/broker.iml" filepath="$PROJECT_DIR$/../moquette/broker/broker.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../moquette/netty_parser/netty_parser.iml" filepath="$PROJECT_DIR$/../moquette/netty_parser/netty_parser.iml" />
       <module fileurl="file://$PROJECT_DIR$/one-core.iml" filepath="$PROJECT_DIR$/one-core.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../moquette/parser_commons/parser_commons.iml" filepath="$PROJECT_DIR$/../moquette/parser_commons/parser_commons.iml" />
     </modules>
   </component>
 </project>

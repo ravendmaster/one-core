@@ -58,7 +58,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
 
         WidgetData widget = mItemList.get(position).second;
 
-        Presenter presenter = MainActivity.presenter;
+        //Presenter presenter = MainActivity.presenter;
 
         String name = widget.getName(0);
         if (widget.getType() == WidgetData.WidgetTypes.GRAPH) {
@@ -81,7 +81,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
         if(compactMode) {
             holder.mRoot.getLayoutParams().height = (int) (24*MainActivity.density * interfaceMagnify);
             holder.mWidgetDragPlace.getLayoutParams().width = (int)(18*MainActivity.density*interfaceMagnify);
-            if(presenter.isEditMode()) {
+            if(MainActivity.getPresenter().isEditMode()) {
                 holder.mWidgetName.setTextSize(10 * interfaceMagnify);
                 holder.mWidgetTopic.setTextSize(6 * interfaceMagnify);
                 holder.mWidgetValue.setTextSize(10 * interfaceMagnify);
@@ -121,7 +121,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
 
 
 
-        if (!presenter.isEditMode()) {
+        if (!MainActivity.getPresenter().isEditMode()) {
             holder.mWidgetEditButton.getLayoutParams().width = 0;
         } else {
             holder.mWidgetEditButton.getLayoutParams().width = (int) (32 * MainActivity.density * interfaceMagnify);
@@ -137,10 +137,10 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
             holder.mWidgetName.setTextColor(Color.LTGRAY);
         }
 
-        holder.mRoot.setVisibility(presenter.isEditMode() || (widget.getType() != WidgetData.WidgetTypes.GRAPH) ? View.VISIBLE : View.GONE);
+        holder.mRoot.setVisibility(MainActivity.getPresenter().isEditMode() || (widget.getType() != WidgetData.WidgetTypes.GRAPH) ? View.VISIBLE : View.GONE);
 
         //TextView topicView = (TextView) convertView.findViewById(R.id.widget_topic);
-        holder.mWidgetTopic.setVisibility(presenter.isEditMode() && (widget.getType() != WidgetData.WidgetTypes.HEADER) ? View.VISIBLE : View.GONE);
+        holder.mWidgetTopic.setVisibility(MainActivity.getPresenter().isEditMode() && (widget.getType() != WidgetData.WidgetTypes.HEADER) ? View.VISIBLE : View.GONE);
         holder.mWidgetTopic.setText(widget.getSubTopic(0));
 
 
@@ -159,7 +159,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
             valueTextView[i].setTag(widget);
         }
 
-        if (!presenter.isEditMode()) {
+        if (!MainActivity.getPresenter().isEditMode()) {
             holder.mWidgetValue.setOnLongClickListener(MainActivity.instance);
             //holder.mWidgetMeter.setOnLongClickListener(MainActivity.instance);
         } else {
@@ -170,17 +170,17 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
 
         String topic_suffix = widget.getTopicSuffix();
         String[] values = new String[4];
-        values[0] = presenter.getMQTTCurrentValue(widget.getSubTopic(0) + topic_suffix);
-        values[1] = presenter.getMQTTCurrentValue(widget.getSubTopic(1) + topic_suffix);
-        values[2] = presenter.getMQTTCurrentValue(widget.getSubTopic(2) + topic_suffix);
-        values[3] = presenter.getMQTTCurrentValue(widget.getSubTopic(3) + topic_suffix);
+        values[0] = MainActivity.getPresenter().getMQTTCurrentValue(widget.getSubTopic(0) + topic_suffix);
+        values[1] = MainActivity.getPresenter().getMQTTCurrentValue(widget.getSubTopic(1) + topic_suffix);
+        values[2] = MainActivity.getPresenter().getMQTTCurrentValue(widget.getSubTopic(2) + topic_suffix);
+        values[3] = MainActivity.getPresenter().getMQTTCurrentValue(widget.getSubTopic(3) + topic_suffix);
 
 
         String[]showValue = new String[4];
         for(int i=0;i<4;i++) {
             showValue[i] = values[0];
             if (!widget.getOnShowExecute().isEmpty()) {
-                showValue[i] = presenter.evalJS(widget, values[i], widget.getOnShowExecute());
+                showValue[i] = MainActivity.getPresenter().evalJS(widget, values[i], widget.getOnShowExecute());
             }
         }
 
@@ -209,7 +209,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
 
         //ImageView drag_place = (ImageView) convertView.findViewById(R.id.widget_drag_place);
         if (holder.mWidgetDragPlace != null) {
-            holder.mWidgetDragPlace.setVisibility(presenter.isEditMode() ? View.VISIBLE : View.GONE);
+            holder.mWidgetDragPlace.setVisibility(MainActivity.getPresenter().isEditMode() ? View.VISIBLE : View.GONE);
         }
 
         //ImageView edit_button = (ImageView) convertView.findViewById(R.id.imageView_edit_button);
@@ -218,7 +218,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
         holder.mWidgetComboBoxSelector.setTag(widget);
         holder.mWidgetComboBoxSelector.setVisibility(View.GONE);
 
-        holder.mWidgetJS.setVisibility( !presenter.isEditMode() || (widget.getOnReceiveExecute().isEmpty() && widget.getOnShowExecute().isEmpty()) ? View.GONE:View.VISIBLE);
+        holder.mWidgetJS.setVisibility( !MainActivity.getPresenter().isEditMode() || (widget.getOnReceiveExecute().isEmpty() && widget.getOnShowExecute().isEmpty()) ? View.GONE:View.VISIBLE);
 
         holder.mWidgetGraph.setTag(widget);
 /*
@@ -237,7 +237,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
         switch (widget.getType()) {
             case COMBOBOX:
                 holder.mWidgetComboBoxSelector.setVisibility(View.VISIBLE);
-                holder.mWidgetComboBoxSelector.setEnabled(!presenter.isEditMode());
+                holder.mWidgetComboBoxSelector.setEnabled(!MainActivity.getPresenter().isEditMode());
 
                 holder.mWidgetValue.setVisibility(View.VISIBLE);
                 holder.mWidgetValue.setText(ComboBoxSupport.INSTANCE.getLabelByValue(values[0], widget.getPublishValue()));
@@ -255,7 +255,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
                 //Log.d(getClass().getName(), "case BUTTONSSET:");
                 holder.mWidgetButtonsSet.setVisibility(View.VISIBLE);
                 holder.mWidgetButtonsSet.setColorLight(widget.getPrimaryColor(0));
-                holder.mWidgetButtonsSet.setEnabled(!presenter.isEditMode());
+                holder.mWidgetButtonsSet.setEnabled(!MainActivity.getPresenter().isEditMode());
                 holder.mWidgetButtonsSet.setPublishValues(widget.getPublishValue());
                 holder.mWidgetButtonsSet.setRetained(widget.getRetained());
                 if (values[0] != null) {
@@ -290,7 +290,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
                 holder.mWidgetMeter.setMin(Utilities.INSTANCE.parseFloat(widget.getPublishValue(), 0));
                 holder.mWidgetMeter.setMax(Utilities.INSTANCE.parseFloat(widget.getPublishValue2(), 0));
                 holder.mWidgetMeter.setAlarmZones(Utilities.INSTANCE.parseFloat(widget.getAdditionalValue(), 0), Utilities.INSTANCE.parseFloat(widget.getAdditionalValue2(), 0));
-                holder.mWidgetMeter.setEnabled(!presenter.isEditMode());
+                holder.mWidgetMeter.setEnabled(!MainActivity.getPresenter().isEditMode());
                 break;
             case VALUE:
                 for(int i=0;i<1;i++) {
@@ -306,13 +306,13 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
                 if (values[0] != null) {
                     holder.mWidgetSwitch.setChecked(values[0].equals(widget.getPublishValue()));
                 }
-                holder.mWidgetSwitch.setEnabled(!presenter.isEditMode());
+                holder.mWidgetSwitch.setEnabled(!MainActivity.getPresenter().isEditMode());
                 holder.mWidgetSwitch.setOnCheckedChangeListener(MainActivity.instance);
                 break;
             case BUTTON:
                 holder.mWidgetButton.setColorLight(widget.getPrimaryColor(0));
                 holder.mWidgetButton.setVisibility(View.VISIBLE);
-                holder.mWidgetButton.setEnabled(!presenter.isEditMode());
+                holder.mWidgetButton.setEnabled(!MainActivity.getPresenter().isEditMode());
                 holder.mWidgetButton.setLabelOn(widget.getLabel());
                 holder.mWidgetButton.setLabelOff(widget.getLabel2());
                 if (values[0] != null) {
@@ -334,7 +334,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
                         holder.mWidgetRGBLED.setOn(values[0].equals(widget.getPublishValue()));
                     }
                 }
-                holder.mWidgetRGBLED.setEnabled(!presenter.isEditMode());
+                holder.mWidgetRGBLED.setEnabled(!MainActivity.getPresenter().isEditMode());
                 break;
             case SLIDER:
                 holder.mWidgetSeekBarGroup.setVisibility(View.VISIBLE);
@@ -351,7 +351,7 @@ public class ItemAdapter extends DragItemAdapter<Pair<Long, WidgetData>, ItemAda
                 int minMax = (int) (1f / main_step * (Utilities.INSTANCE.parseFloat(widget.getPublishValue2(), 0) - Utilities.INSTANCE.parseFloat(widget.getPublishValue(), 0)));
 
                 holder.mWidgetSlider.setMax(minMax);
-                holder.mWidgetSlider.setEnabled(!presenter.isEditMode());
+                holder.mWidgetSlider.setEnabled(!MainActivity.getPresenter().isEditMode());
 
                 float valueInt = Utilities.INSTANCE.parseFloat(values[0].replace("*", ""), 0) - Utilities.INSTANCE.parseFloat(widget.getPublishValue(), 0);
 

@@ -18,6 +18,7 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import com.ravendmaster.onecore.activity.MainActivity;
+import com.ravendmaster.onecore.service.Presenter;
 import com.ravendmaster.onecore.service.WidgetData;
 import com.woxthebox.draglistview.BoardView;
 import com.woxthebox.draglistview.DragItem;
@@ -25,6 +26,8 @@ import com.woxthebox.draglistview.DragItem;
 import java.util.ArrayList;
 
 public class BoardFragment extends Fragment {
+
+    private Presenter presenter;
 
     private static int sCreatedItems = 0;
     private BoardView mBoardView;
@@ -35,7 +38,7 @@ public class BoardFragment extends Fragment {
     }
 
     public void notifyItemChangedAll(){
-        for(int tabIndex=0;tabIndex<MainActivity.presenter.getTabs().getItems().size();tabIndex++) {
+        for(int tabIndex=0;tabIndex<presenter.getTabs().getItems().size();tabIndex++) {
             mBoardView.getAdapter(tabIndex).notifyItemRangeChanged(0, 100);
         }
     }
@@ -86,7 +89,7 @@ public class BoardFragment extends Fragment {
                 if (fromColumn != toColumn || fromRow != toRow) {
                     //Toast.makeText(mBoardView.getContext(), "End - column: " + toColumn + " row: " + toRow, Toast.LENGTH_SHORT).show();
                     MainActivity.presenter.moveWidget(getContext(), fromColumn, fromRow, toColumn, toRow);
-                    //MainActivity.presenter.saveActiveDashboard(MainActivity.instance);
+                    //MainActivity.presenter.saveActiveDashboardToDisk(MainActivity.instance);
                     //mBoardView.getAdapter(fromColumn).notifyDataSetChanged();
                     //mBoardView.getAdapter(toColumn).notifyDataSetChanged();
                 }
@@ -108,7 +111,7 @@ public class BoardFragment extends Fragment {
 
     void loadDataToDataSet(){
         mBoardView.clearBoard();
-        for(TabData tabData:MainActivity.presenter.getTabs().getItems()){
+        for(TabData tabData:presenter.getTabs().getItems()){
             addColumnList(tabData);
         }
     }
@@ -152,7 +155,7 @@ public class BoardFragment extends Fragment {
 
     private void addColumnList(TabData tabData) {
         final ArrayList<Pair<Long, WidgetData>> mItemArray = new ArrayList<>();
-        ArrayList<WidgetData> widgetDatas=MainActivity.presenter.getWidgetsListOfTabIndex(tabData.getId());// getWidgetsListOfTabIndex(tabIndex);
+        ArrayList<WidgetData> widgetDatas=presenter.getWidgetsListOfTabIndex(tabData.getId());// getWidgetsListOfTabIndex(tabIndex);
         if(widgetDatas!=null) {
             for (WidgetData widgetData : widgetDatas) {
                 long id = sCreatedItems++;

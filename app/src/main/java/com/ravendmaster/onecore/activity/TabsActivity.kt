@@ -15,8 +15,11 @@ import com.ravendmaster.onecore.TabData
 import com.ravendmaster.onecore.TabListFragment
 import com.ravendmaster.onecore.service.AppSettings
 import com.ravendmaster.onecore.R
+import com.ravendmaster.onecore.service.Presenter
 
 class TabsActivity : AppCompatActivity() {
+
+    internal var presenter: Presenter?=null
 
     internal lateinit var mTabsListFragment: TabListFragment
 
@@ -98,7 +101,7 @@ class TabsActivity : AppCompatActivity() {
                 ) { dialog, id ->
                     val newName = userInput.text.toString()
                     if (currentTabData == null) {
-                        MainActivity.presenter.addNewTab(newName)
+                        presenter!!.addNewTab(newName)
                     } else {
                         currentTabData!!.name = newName
                     }
@@ -128,14 +131,10 @@ class TabsActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-
-        MainActivity.presenter.saveTabsList(this)
-
-
+        presenter!!.saveTabsList()
     }
 
     companion object {
-
         var instance: TabsActivity? = null
     }
 }

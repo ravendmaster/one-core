@@ -17,6 +17,6 @@ class AutoStart : BroadcastReceiver() {
             context.startService(intent)
         }
 
-        Log.d(javaClass.name, "started")
+        Log.d(javaClass.name, "BroadcastReceiver onReceive()")
     }
 }

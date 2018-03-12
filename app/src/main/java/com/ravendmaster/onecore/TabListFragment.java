@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.ravendmaster.onecore.activity.MainActivity;
+import com.ravendmaster.onecore.service.Presenter;
 import com.woxthebox.draglistview.*;
 
 import java.util.ArrayList;
@@ -80,11 +81,11 @@ public class TabListFragment extends Fragment {
 
 
 
-                    TabsCollection tabsCollection = MainActivity.presenter.getTabs();
+                    TabsCollection tabsCollection = MainActivity.getPresenter().getTabs();
                     TabData tempTabData = (TabData) tabsCollection.getItems().get(fromPosition);
                     tabsCollection.getItems().remove(fromPosition);
                     tabsCollection.getItems().add(toPosition, tempTabData);
-                    //MainActivity.presenter.saveTabsList();// saveActiveDashboard(MainActivity.instance, MainActivity.presenter.getActiveDashboardId());
+                    //MainActivity.presenter.saveTabsList();// saveActiveDashboardToDisk(MainActivity.instance, MainActivity.presenter.getActiveDashboardId());
 
                 }
             }
@@ -101,7 +102,7 @@ public class TabListFragment extends Fragment {
     public void loadDataToDataSet() {
         mItemArray.clear();
 
-        TabsCollection tabDatas=MainActivity.presenter.getTabs();
+        TabsCollection tabDatas=MainActivity.getPresenter().getTabs();
 
         for (TabData tabData : tabDatas.getItems()) {
             mItemArray.add(new Pair<>(Long.valueOf(index), tabData));

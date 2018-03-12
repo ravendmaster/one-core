@@ -64,6 +64,12 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/publish_config"
+        android:title="Publish config"
+        android:visible="true"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/share_settings"
         android:title="@string/share_settings"
         app:showAsAction="never" />

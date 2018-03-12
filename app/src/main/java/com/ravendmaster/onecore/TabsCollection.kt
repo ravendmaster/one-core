@@ -5,8 +5,8 @@ import android.util.*
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import java.io.Reader
 
-import java.io.StringReader
 import java.util.ArrayList
 
 class TabsCollection {
@@ -51,14 +51,6 @@ class TabsCollection {
         items.clear()
 
         try {
-            /*
-            String name2 = jsonReader.nextString();
-            TabData tabData2 = new TabData();
-            tabData2.setId(1);
-            tabData2.setName("esp32");
-            items.add(tabData2);
-*/
-
             jsonReader.beginArray()
             while (jsonReader.hasNext()) {
                 val tabData = TabData()
@@ -78,33 +70,6 @@ class TabsCollection {
         } catch (e: Exception) {
             android.util.Log.d("error", e.toString())
         }
-
-    }
-
-    //using in AppSettings.readFromPrefs
-    fun setFromJSONString(tabsJSON: String) {
-        items.clear()
-        val jsonReader = JsonReader(StringReader(tabsJSON))
-        try {
-            jsonReader.beginArray()
-            while (jsonReader.hasNext()) {
-                val tabData = TabData()
-                jsonReader.beginObject()
-                while (jsonReader.hasNext()) {
-                    val name = jsonReader.nextName()
-                    when (name) {
-                        "id" -> tabData.id = jsonReader.nextInt()
-                        "name" -> tabData.name = jsonReader.nextString()
-                    }
-                }
-                jsonReader.endObject()
-                items.add(tabData)
-            }
-            jsonReader.endArray()
-        } catch (e: Exception) {
-            android.util.Log.d("error", e.toString())
-        }
-
     }
 
 

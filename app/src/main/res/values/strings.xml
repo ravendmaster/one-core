@@ -77,5 +77,6 @@
     <string name="close">Close</string>
     <string name="copy">Copy...</string>
     <string name="move_to_tab">Move to tab...</string>
+    <string name="ChanelNamePushNotification">Push notification</string>
 
 </resources>

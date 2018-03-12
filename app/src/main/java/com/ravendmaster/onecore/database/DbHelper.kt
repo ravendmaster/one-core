@@ -3,9 +3,16 @@ package com.ravendmaster.onecore.database
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.os.Environment
+import java.io.File
 
-class DbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+class DbHelper(context: Context, dbPath: String) : SQLiteOpenHelper(context, dbPath, null, DATABASE_VERSION) {
+
+
     override fun onCreate(db: SQLiteDatabase) {
+
+
+
         db.execSQL(SQL_CREATE_TOPICS)
         db.execSQL("CREATE INDEX topics_index on topics (topic);")
 
@@ -50,6 +57,6 @@ class DbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null
 
         // If you change the database schema, you must increment the database version.
         val DATABASE_VERSION = 1
-        val DATABASE_NAME = "linear.db"
+        //val DATABASE_NAME = "onecore.db"
     }
 }

@@ -1,6 +1,8 @@
 package com.ravendmaster.onecore.activity;
 
 import android.annotation.TargetApi;
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -70,20 +72,14 @@ import java.util.zip.ZipOutputStream;
 
 public class MainActivity extends AppCompatActivity implements View.OnLongClickListener, Presenter.IView, Switch.OnCheckedChangeListener, SeekBar.OnSeekBarChangeListener, MyButton.OnMyButtonEventListener, ButtonsSet.OnButtonsSetEventListener {
 
-    public MainActivity() {
-        super();
-
-        instance = this;
-        //if(presenter==null) {
-            presenter = new Presenter(this);
-        //}else{
-        //    presenter.updateView(this);
-        //}
-    }
+    Intent mMQTTServiceIntent;
 
     private FirebaseAnalytics mFirebaseAnalytics;
 
-    public static Presenter presenter;
+    static private Presenter mPresenter;
+    static public Presenter getPresenter(){
+        return mPresenter;
+    }
 
     public static MainActivity instance;
     public static float density;
@@ -108,15 +104,21 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
     Menu optionsMenu;
 
+    public MainActivity() {
+        super();
+        instance = this;
+
+    }
+
     @Override
     public boolean onLongClick(View view) {
         Log.INSTANCE.d(getClass().getName(), "long click");
-        return presenter.onLongClick(view);
+        return MainActivity.getPresenter().onLongClick(view);
     }
 
     @Override
     public void OnButtonsSetPressed(ButtonsSet buttonSet, int index) {
-        presenter.OnButtonsSetPressed(buttonSet, index);
+        MainActivity.getPresenter().OnButtonsSetPressed(buttonSet, index);
     }
 
     public enum DASHBOARD_VIEW_MODE {
@@ -162,17 +164,14 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
         AppSettings appSettings = AppSettings.Companion.getInstance();
         if (appSettings.getServer() == null) return true;
-        if (appSettings.getServer().equals("ravend.asuscomm.com")) {
-            //optionsMenu.findItem(R.id.request_prices).setVisible(true);
-            //optionsMenu.findItem(R.id.action_board).setVisible(true);
-            //optionsMenu.findItem(R.id.action_lists).setVisible(true);
-        }
+
+       //optionsMenu.findItem(R.id.action_board).setVisible(true);
+        //optionsMenu.findItem(R.id.action_lists).setVisible(true);
 
         getDashboardViewMode();
 
         return super.onCreateOptionsMenu(menu);
     }
-
 
     void updatePlayPauseMenuItem() {
 
@@ -180,24 +179,24 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
         MenuItem menuItemAutoCreateWidgets = optionsMenu.findItem(R.id.auto_create_widgets);
 
-        if (presenter.isEditMode()) {
+        if (MainActivity.getPresenter().isEditMode()) {
             menuItemPlayPause.setIcon(R.drawable.ic_play);
-            menuItemAutoCreateWidgets.setVisible(presenter.getUnusedTopics().length > 0);
+            menuItemAutoCreateWidgets.setVisible(MainActivity.getPresenter().getUnusedTopics().length > 0);
 
         } else {
             menuItemPlayPause.setIcon(R.drawable.ic_pause);
             menuItemAutoCreateWidgets.setVisible(false);
         }
 
-        menuItem_add_new_widget.setVisible(presenter.isEditMode());
-        menuItem_clear_dashboard.setVisible(presenter.isEditMode());
+        menuItem_add_new_widget.setVisible(MainActivity.getPresenter().isEditMode());
+        menuItem_clear_dashboard.setVisible(MainActivity.getPresenter().isEditMode());
 
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
 
-        presenter.onMainMenuItemSelected();
+        MainActivity.getPresenter().onMainMenuItemSelected();
 
         switch (item.getItemId()) {
             case R.id.action_lists:
@@ -213,14 +212,15 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
         switch (item.getItemId()) {
 
             case R.id.Edit_play_mode:
-                presenter.setEditMode(!presenter.isEditMode());
+                MainActivity.getPresenter().setEditMode(!MainActivity.getPresenter().isEditMode());
                 updatePlayPauseMenuItem();
                 refreshDashboard(true);
-                if (!presenter.isEditMode()) {
-                    if(MainActivity.presenter!=null) {
-                        MainActivity.presenter.connectionSettingsChanged();
-                    }
-                    //presenter.saveActiveDashboard(getApplicationContext());
+                if (!MainActivity.getPresenter().isEditMode()) {
+
+                    //if(MainActivity.presenter!=null) {
+                    //    MainActivity.presenter.connectionSettingsChanged();
+                    //}
+
                     Toast.makeText(getApplicationContext(), "Play mode", Toast.LENGTH_SHORT).show();
 
                 } else {
@@ -235,9 +235,9 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
                 break;
             case R.id.Add_new_widget:
-                if (presenter.getTabs().getItems().size() == 0) {
-                    presenter.addNewTab("default");
-                    presenter.saveTabsList(this);
+                if (MainActivity.getPresenter().getTabs().getItems().size() == 0) {
+                    MainActivity.getPresenter().addNewTab("default");
+                    MainActivity.getPresenter().saveTabsList();
                     Toast.makeText(getApplicationContext(), "Added tab", Toast.LENGTH_SHORT).show();
                 }
                 Intent intent = new Intent(this, WidgetEditorActivity.class);
@@ -246,9 +246,9 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                 break;
 
             case R.id.auto_create_widgets:
-                if (presenter.getTabs().getItems().size() == 0) {
-                    presenter.addNewTab("default");
-                    presenter.saveTabsList(this);
+                if (MainActivity.getPresenter().getTabs().getItems().size() == 0) {
+                    MainActivity.getPresenter().addNewTab("default");
+                    MainActivity.getPresenter().saveTabsList();
                     Toast.makeText(getApplicationContext(), "Added tab", Toast.LENGTH_SHORT).show();
                 }
                 showDiscoveredDataDialog();
@@ -268,8 +268,8 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                 ad.setMessage("Widgets list is cleared!"); // сообщение
                 ad.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int arg1) {
-                        presenter.clearDashboard();
-                        presenter.saveActiveDashboard(getApplicationContext(), presenter.getActiveDashboardId());
+                        MainActivity.getPresenter().clearDashboard();
+                        MainActivity.getPresenter().saveActiveDashboardToDisk(MainActivity.getPresenter().getActiveDashboardId());
                         mListFragment.notifyDataSetChanged();
 
                     }
@@ -307,6 +307,11 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                     shareSettings();
                 }
                 break;
+
+            case R.id.publish_config:
+                MainActivity.getPresenter().publishConfig();
+                break;
+
         }
         return super.onOptionsItemSelected(item);
     }
@@ -327,13 +332,14 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
         }
     }
 
-    void refreshTabState() {
+    @Override
+    public void refreshTabState() {
         tabsController.refreshState(this);
     }
 
     void showDiscoveredDataDialog() {
 
-        final Object[] unusedTopics = presenter.getUnusedTopics();// appSettings.getTabNames();
+        final Object[] unusedTopics = MainActivity.getPresenter().getUnusedTopics();// appSettings.getTabNames();
 
         final CharSequence[] items = new CharSequence[unusedTopics.length];
         int index = 0;
@@ -365,9 +371,9 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                                     widgetData.setName(0, (String) unusedTopics[(int) item]);
                                     widgetData.setSubTopic(0, (String) unusedTopics[(int) item]);
 
-                                    presenter.addWidget(widgetData);
+                                    MainActivity.getPresenter().addWidget(widgetData);
                                 }
-                                presenter.saveActiveDashboard(getApplicationContext(), MainActivity.presenter.getActiveDashboardId());
+                                MainActivity.getPresenter().saveActiveDashboardToDisk(MainActivity.getPresenter().getActiveDashboardId());
                                 refreshDashboard(false);
                                 onTabSelected();//для обновления содержимого вкладки
                                 dialog.cancel();
@@ -401,14 +407,12 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
             OutputStream os_ = new FileOutputStream(file);
             ZipOutputStream os = new ZipOutputStream(new BufferedOutputStream(os_));
 
-            String allSettings = AppSettings.Companion.getInstance().getSettingsAsString();
+            String allSettings = AppSettings.Companion.getInstance().getSettingsAsStringForExport();
             os.putNextEntry(new ZipEntry("settings.json"));
             buff = Utilities.INSTANCE.stringToBytesUTFCustom(allSettings);
             os.flush();
             os.write(buff);
             os.close();
-
-
         } catch (IOException e) {
             Log.INSTANCE.w("ExternalStorage", "Error writing " + file, e);
         }
@@ -443,7 +447,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
     }
 
     void refreshDashboard(boolean hard_mode) {
-        if (presenter.isEditMode() && !hard_mode) return;
+        if (MainActivity.getPresenter().isEditMode() && !hard_mode) return;
     }
 
     @Override
@@ -453,7 +457,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
     @Override
     public void notifyPayloadOfWidgetChanged(int screenTabIndex, int widgetIndex) {
-        if (mListFragment != null && presenter.getScreenActiveTabIndex() == screenTabIndex) {
+        if (mListFragment != null && MainActivity.getPresenter().getScreenActiveTabIndex() == screenTabIndex) {
             mListFragment.notifyItemChanged(widgetIndex);
         }
 
@@ -487,7 +491,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
         alertDialogBuilder.setView(promptsView);
 
         final EditText userInput = (EditText) promptsView.findViewById(R.id.editTextDialogUserInput);
-        userInput.setText(presenter.getMQTTCurrentValue(widgetData.getSubTopic(0)).replace("*", ""));
+        userInput.setText(MainActivity.getPresenter().getMQTTCurrentValue(widgetData.getSubTopic(0)).replace("*", ""));
 
         if (widgetData.getType() == WidgetData.WidgetTypes.VALUE && widgetData.getMode() == 1) {
             userInput.setInputType(EditorInfo.TYPE_CLASS_NUMBER | EditorInfo.TYPE_NUMBER_FLAG_DECIMAL | EditorInfo.TYPE_NUMBER_FLAG_SIGNED);
@@ -500,7 +504,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                 .setPositiveButton("OK",
                         new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int id) {
-                                presenter.sendMessageNewValue(userInput.getText().toString());
+                                MainActivity.getPresenter().sendMessageNewValue(userInput.getText().toString());
                                 refreshDashboard(true);
                             }
                         })
@@ -540,17 +544,17 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
     @Override
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-        presenter.onProgressChanged(seekBar);
+        MainActivity.getPresenter().onProgressChanged(seekBar);
     }
 
     @Override
     public void onStartTrackingTouch(SeekBar seekBar) {
-        presenter.onStartTrackingTouch(seekBar);
+        MainActivity.getPresenter().onStartTrackingTouch(seekBar);
     }
 
     @Override
     public void onStopTrackingTouch(SeekBar seekBar) {
-        presenter.onStopTrackingTouch(seekBar);
+        MainActivity.getPresenter().onStopTrackingTouch(seekBar);
     }
 
     //вызов меню параметров виджета (на три точки)
@@ -565,20 +569,20 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                 switch (menuItem.getItemId()) {
                     case R.id.widget_edit:
                         Intent intent = new Intent(MainActivity.this, WidgetEditorActivity.class);
-                        intent.putExtra("widget_index", presenter.getWidgetIndex(widget));
+                        intent.putExtra("widget_index", MainActivity.getPresenter().getWidgetIndex(widget));
                         startActivityForResult(intent, WidgetEditMode_EDIT);
                         return true;
 
                     case R.id.widget_copy:
                         intent = new Intent(MainActivity.this, WidgetEditorActivity.class);
                         intent.putExtra("createCopy", true);
-                        intent.putExtra("widget_index", presenter.getWidgetIndex(widget));
+                        intent.putExtra("widget_index", MainActivity.getPresenter().getWidgetIndex(widget));
                         startActivityForResult(intent, WidgetEditMode_COPY);
                         return true;
 
                     case R.id.widget_remove:
-                        presenter.removeWidget(widget);
-                        presenter.saveActiveDashboard(getApplicationContext(), presenter.getActiveDashboardId());
+                        MainActivity.getPresenter().removeWidget(widget);
+                        MainActivity.getPresenter().saveActiveDashboardToDisk(MainActivity.getPresenter().getActiveDashboardId());
                         if (mListFragment != null) {
                             mListFragment.notifyDataSetChanged();
                         }
@@ -603,7 +607,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
     //вызов комбо бокс списка
     public void showPopupMenuComboBoxSelectorButtonOnClick(View view) {
 
-        presenter.onComboBoxSelector(view);//регистрируем нажатый виджет для дальнейшего publish
+        MainActivity.getPresenter().onComboBoxSelector(view);//регистрируем нажатый виджет для дальнейшего publish
 
         final WidgetData widget = (WidgetData) view.getTag();
 
@@ -629,7 +633,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                         String[] valueLabel = values[item].split("\\|");
                         if (valueLabel.length == 0) return;
                         String newValue = valueLabel[0];
-                        presenter.sendComboBoxNewValue(newValue);
+                        MainActivity.getPresenter().sendComboBoxNewValue(newValue);
                     }
                 })
 
@@ -663,7 +667,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 tabSelectAlertDialog.cancel();
                 AppSettings appSettings = AppSettings.Companion.getInstance();
-                presenter.moveWidgetTo(getApplicationContext(), widget, appSettings.getDashboardIDByTabIndex(position));
+                MainActivity.getPresenter().moveWidgetTo(widget, appSettings.getDashboardIDByTabIndex(position));
                 if (mListFragment != null) {
                     mListFragment.notifyDataSetChanged();
                 }
@@ -713,15 +717,40 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
     public void onPause() {
         Log.INSTANCE.d(getClass().getName(), "onPause()");
 
-        presenter.onPause();
+        MainActivity.getPresenter().onPause();
         super.onPause();
     }
 
+    private boolean isMyServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        android.util.Log.i ("isMyServiceRunning?", false+"");
+        return false;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.INSTANCE.d(getClass().getName(), "onCreate()");
+
+
+
+        mMQTTServiceIntent = new Intent(this, MQTTService.class);
+        startService(mMQTTServiceIntent);
+
+        if(MQTTService.Companion.getInstance()==null){
+            finish();
+            startActivity(new Intent(this, MainActivity.class));
+            return;
+        }
+
+        mPresenter = new Presenter(this);
+
+        MainActivity.getPresenter().onCreate();
 
         mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
 
@@ -729,8 +758,12 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
             mFirebaseAnalytics.setAnalyticsCollectionEnabled(false);
         //}
 
-        presenter.onCreate(this);
 
+
+
+        //presenter.updateView(this);
+
+        /*
         if (presenter.getDashboards() == null) {
             Intent service_intent = new Intent(this, MQTTService.class);
             service_intent.setAction("autostart");
@@ -740,7 +773,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
             startActivity(intent);
             return;
         }
-
+*/
 
 
         if(getIntent().getBooleanExtra("START_IN_FULLSCREEN_MODE", false)){
@@ -777,6 +810,63 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
         }
 
         density=getBaseContext().getResources().getDisplayMetrics().density;
+
+/*
+        Intent intent = new Intent();
+        String packageName = getApplicationContext().getPackageName();
+        PowerManager power = (PowerManager)getApplicationContext().getSystemService(Context.POWER_SERVICE);
+        if (power.isIgnoringBatteryOptimizations(packageName))
+            intent.setAction(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+        else {
+            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(Uri.parse("package:" + packageName));
+
+        }
+        getApplicationContext().startActivity(intent);
+*/
+/*
+        try {
+            InputStream inputStream = getAssets().open("mosquitto-1.4.15.tar");
+
+            File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            File tempFile = new File(path, "test.test");
+
+            FileOutputStream outPutStream=new FileOutputStream(tempFile);
+
+            copy(inputStream, outPutStream);
+            outPutStream.flush();
+            outPutStream.close();
+            outPutStream = null;
+
+
+            File execFile = new File(tempFile.getAbsolutePath());
+            //Runtime.getRuntime().exec("chmod u+x "+tempFile.getAbsolutePath());
+
+            execFile.setExecutable(true);
+            execFile.setReadable(true);
+            execFile.setWritable(false);
+
+
+            Process process = Runtime.getRuntime().exec(tempFile.getAbsolutePath());
+            DataOutputStream os = new DataOutputStream(process.getOutputStream());
+            DataInputStream osRes = new DataInputStream(process.getInputStream());
+
+        }catch (IOException e){
+            int a=10;
+        }
+    */
+
+
+
+    }
+
+
+    public static void copy(InputStream input, OutputStream output) throws IOException {
+        byte[] buffer = new byte[1024];
+        int n = 0;
+        while(-1 != (n = input.read(buffer))) {
+            output.write(buffer, 0, n);
+        }
     }
 
     @Override
@@ -784,13 +874,11 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
         super.onResume();
         Log.INSTANCE.d(getClass().getName(), "onResume()");
 
+        //instance = this;
+        //presenter = new Presenter(this, this, this);
+        MainActivity.getPresenter().updateView(this);
 
-
-        instance = this;
-        //presenter = new Presenter(this);
-        presenter.updateView(this);
-
-        presenter.onResume(this);
+        MainActivity.getPresenter().onResume(this);
 
 
         refreshTabState();
@@ -866,15 +954,17 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                             AppSettings settings = AppSettings.Companion.getInstance();
                             settings.setSettingsFromString(result);
 
-                            settings.saveTabsSettingsToPrefs(MainActivity.instance);
-                            settings.saveConnectionSettingsToPrefs(MainActivity.instance);
+                            settings.saveTabsSettingsToPrefs();
+                            settings.saveConnectionSettingsToPrefs();
 
-                            presenter.createDashboardsBySettings(true);
-                            MainActivity.presenter.saveAllDashboards(getApplicationContext());
+                            MainActivity.getPresenter().createDashboardsBySettings(true);
 
-                            MainActivity.presenter.connectionSettingsChanged();
 
-                            presenter.onTabPressed(0);
+                            MainActivity.getPresenter().saveAllDashboards();
+
+                            MainActivity.getPresenter().connectionSettingsChanged();
+
+                            MainActivity.getPresenter().onTabPressed(0);
                             refreshTabState();
                         }
                     });
@@ -939,12 +1029,16 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         Log.INSTANCE.d(getClass().getName(), "onDestroy()");
 
-        presenter.onDestroy(this);
-        saveDashboardViewMode();
+        //stopService(mMQTTServiceIntent);
 
+        MainActivity.getPresenter().onDestroy();
+
+        //saveDashboardViewMode();
+
+
+        super.onDestroy();
     }
 
     void saveDashboardViewMode() {
@@ -958,13 +1052,13 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
     @Override
     public void OnMyButtonDown(MyButton button) {
-        presenter.onMyButtonDown(button);
+        MainActivity.getPresenter().onMyButtonDown(button);
         //Log.d(getClass().getName(), "OnMyButtonDown()");
     }
 
     @Override
     public void OnMyButtonUp(MyButton button) {
-        presenter.onMyButtonUp(button);
+        MainActivity.getPresenter().onMyButtonUp(button);
         //Log.d(getClass().getName(), "OnMyButtonUp()");
     }
 
@@ -973,7 +1067,9 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 
         if (!buttonView.isPressed()) return;
-        presenter.onClickWidgetSwitch(buttonView);
+        MainActivity.getPresenter().onClickWidgetSwitch(buttonView);
         //Log.d(getClass().getName(), "onCheckedChanged()");
     }
+
+
 }

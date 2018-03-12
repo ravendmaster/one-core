@@ -1,14 +1,14 @@
 package com.ravendmaster.onecore.service
 
-import android.content.Context
 import android.util.JsonReader
 import android.util.Log
 import com.ravendmaster.onecore.TabData
 import com.ravendmaster.onecore.TabsCollection
+import com.ravendmaster.onecore.Utilities
 import org.json.JSONException
 import org.json.JSONObject
-import java.io.IOException
-import java.io.StringReader
+import java.io.*
+
 
 class AppSettings private constructor()
 {
@@ -25,8 +25,9 @@ class AppSettings private constructor()
     var server_mode: Boolean = false
     var push_notifications_subscribe_topic = ""
     var connection_in_background = false
-    internal lateinit var dashboards: DashboardsConfiguration
-    internal var tabs: TabsCollection? = null
+    internal lateinit var dashboardsConfiguration: DashboardsConfiguration
+
+    internal var tabs = TabsCollection()
 
     val tabNames: Array<String?>
         get() {
@@ -40,10 +41,31 @@ class AppSettings private constructor()
 
     private var settingsLoaded = false
 
-    private var context: Context? = null
+    private val appSettingsAsString: String
+        get() {
+
+            val resultJson = JSONObject()
+
+            try {
+                resultJson.put("server", server)
+                resultJson.put("port", port)
+                resultJson.put("username", username)
+                resultJson.put("server_topic", server_topic)
+                resultJson.put("push_notifications_subscribe_topic", push_notifications_subscribe_topic)
+                resultJson.put("keep_alive", keep_alive)
+                resultJson.put("connection_in_background", connection_in_background)
+                resultJson.put("settingsVersion", settingsVersion)
+                resultJson.put("view_compact_mode", view_compact_mode)
+                resultJson.put("view_magnify", view_magnify)
+
+            } catch (e: JSONException) {
+                e.printStackTrace()
+            }
+            return resultJson.toString()
+        }
 
 
-    val settingsAsString: String
+    val settingsAsStringForExport: String
         get() {
 
             val resultJson = JSONObject()
@@ -60,7 +82,7 @@ class AppSettings private constructor()
 
                 resultJson.put("tabs", tabs!!.asJSON)
 
-                resultJson.put("dashboards", dashboards.asJSON)
+                resultJson.put("dashboards", dashboardsConfiguration.asJSON)
 
             } catch (e: JSONException) {
                 e.printStackTrace()
@@ -82,33 +104,17 @@ class AppSettings private constructor()
         tabs!!.items.add(tabData)
     }
 
-    fun readFromPrefs(con: Context) {
-        context = con
+    fun readPrefsFromDisk() {
+
         if (settingsLoaded) return
         settingsLoaded = true
 
-        Log.d(javaClass.name, "readFromPrefs()")
+        Log.d(javaClass.name, "readPrefsFromDisk()")
 
-        var sprefs = con.getSharedPreferences("mysettings", Context.MODE_PRIVATE)
-
-        adfree = sprefs.getBoolean("adfree", false)
-
-        view_compact_mode = sprefs.getBoolean("view_compact_mode", false)
-        view_magnify = sprefs.getInt("view_magnify", 0)
-
-        server = sprefs.getString("connection_server", "")
-        port = sprefs.getString("connection_port", "")
-        username = sprefs.getString("connection_username", "")
-        password = sprefs.getString("connection_password", "")
-        server_topic = sprefs.getString("connection_server_topic", "")
-        push_notifications_subscribe_topic = sprefs.getString("connection_push_notifications_subscribe_topic", "")
-        keep_alive = sprefs.getString("keep_alive", "60")
-        connection_in_background = sprefs.getBoolean("connection_in_background", false)
-        server_mode = sprefs.getBoolean("server_mode", false)
-
-        settingsVersion = sprefs.getInt("settingsVersion", 0)
-
-        //settingsVersion=0;
+        var app_settings_file=File(Utilities.getAppDir().absolutePath+ File.separator+"app_settings.json")
+        if(app_settings_file.exists()) {
+            setSettingsFromString(app_settings_file.readText())
+        }
 
         if (server == "") {
             server = "ssl://m21.cloudmqtt.com"
@@ -121,70 +127,31 @@ class AppSettings private constructor()
             connection_in_background = false
         }
 
-        /* 3.0
-        if (subscribe_topic.equals("")) {
-            subscribe_topic = "#";
-        }
-        */
-
-
-        sprefs = con.getSharedPreferences("mytabs", Context.MODE_PRIVATE)
-
         tabs = TabsCollection()
-
-        dashboards = DashboardsConfiguration()
-
-        //tabs
-        if (settingsVersion == 0) {
-            for (i in 0..3) {
-                val tabData = TabData()
-                tabData.id = i
-                tabData.name = sprefs.getString("tab" + (i + 1), "tab #" + i)
-                tabs!!.items.add(tabData)
-            }
-            //dashboards
-
-            sprefs = con.getSharedPreferences("dashboard", Context.MODE_PRIVATE)
-            for (i in 0..3) {
-                dashboards.put(i, sprefs.getString(getDashboardSystemName(i), ""))
-            }
-
-        } else if (settingsVersion == 1) {
-
-            val tabsJSON = sprefs.getString("tabs", "")
-            Log.d("tabs", tabsJSON)
-
-
-            tabs!!.setFromJSONString(tabsJSON)
-
-            sprefs = con.getSharedPreferences("dashboard", Context.MODE_PRIVATE)
-
-            for (tabData in tabs!!.items) {
-                val dashboardSysName = getDashboardSystemName(tabData.id)
-                dashboards.put(tabData.id, sprefs.getString(dashboardSysName, ""))
-            }
-
+        var file=File(Utilities.getAppDir().absolutePath+ File.separator+"tabs.json")
+        if(file.exists()) {
+            var fileData = FileReader(file.absoluteFile)
+            tabs!!.setFromJSON(JsonReader(fileData))
         }
 
+        dashboardsConfiguration = DashboardsConfiguration()
+        for (tabData in tabs.items) {
+            val file=File(Utilities.getAppDir().absolutePath+ File.separator+"dashboard${tabData.id}.json")
+            if(!file.exists())continue
+            dashboardsConfiguration.put(tabData.id, file.readText())
+        }
+
+
     }
 
-
-    private fun getDashboardSystemName(tabIndex: Int): String {
-        return "dashboard" + if (tabIndex == 0) "" else Integer.toString(tabIndex)
-    }
-
-    fun saveDashboardSettingsToPrefs(tabIndex: Int, con: Context) {
-        Log.d(javaClass.name, "saveDashboardSettingsToPrefs()")
-        val sprefs = con.getSharedPreferences("dashboard", Context.MODE_PRIVATE)
-        val ed = sprefs.edit()
-        ed.putString(getDashboardSystemName(tabIndex), dashboards.get(tabIndex))
-        ed.commit()
-    }
-
-
-    fun saveConnectionSettingsToPrefs(con: Context) {
+    fun saveConnectionSettingsToPrefs() {
         Log.d(javaClass.name, "saveConnectionSettingsToPrefs()")
 
+        FileWriter(Utilities.getAppDir().absolutePath+ File.separator+"app_settings.json").use({ file ->
+            file.write(appSettingsAsString)
+        })
+
+        /*
         val sprefs = con.getSharedPreferences("mysettings", Context.MODE_PRIVATE)
         val ed = sprefs.edit()
         ed.putBoolean("view_compact_mode", view_compact_mode)
@@ -207,9 +174,16 @@ class AppSettings private constructor()
         if (!ed.commit()) {
             Log.d(javaClass.name, "commit failure!!!")
         }
+        */
     }
 
-    fun saveTabsSettingsToPrefs(con: Context?) {
+    fun saveTabsSettingsToPrefs() {
+
+        FileWriter(Utilities.getAppDir().absolutePath+ File.separator+"tabs.json").use({ file ->
+            file.write(tabs!!.asJSON.toString())
+        })
+
+        /*
         val sprefs = con!!.getSharedPreferences("mytabs", Context.MODE_PRIVATE)
         val ed = sprefs.edit()
 
@@ -217,11 +191,12 @@ class AppSettings private constructor()
         if (!ed.commit()) {
             Log.d(javaClass.name, "commit failure!!!")
         }
+        */
     }
 
     fun setSettingsFromString(text: String) {
 
-        tabs!!.items.clear()
+
         settingsVersion = 0
 
         val jsonReader = JsonReader(StringReader(text))
@@ -245,20 +220,17 @@ class AppSettings private constructor()
                     "connection_in_background" -> connection_in_background = jsonReader.nextBoolean()
                     "settingsVersion" -> settingsVersion = jsonReader.nextInt()
 
-                    "tab0" -> tabs!!.items.add(TabData(0, jsonReader.nextString()))
-                    "tab1" -> tabs!!.items.add(TabData(1, jsonReader.nextString()))
-                    "tab2" -> tabs!!.items.add(TabData(2, jsonReader.nextString()))
-                    "tab3" -> tabs!!.items.add(TabData(3, jsonReader.nextString()))
-                    "dashboard0" -> dashboards.put(0, jsonReader.nextString())
-                    "dashboard1" -> dashboards.put(1, jsonReader.nextString())
-                    "dashboard2" -> dashboards.put(2, jsonReader.nextString())
-                    "dashboard3" -> dashboards.put(3, jsonReader.nextString())
+                    "view_compact_mode" -> view_compact_mode = jsonReader.nextBoolean()
+                    "view_magnify" -> view_magnify = jsonReader.nextInt()
 
-                    "tabs" -> tabs!!.setFromJSON(jsonReader)
+                    "tabs" -> {
+                        tabs!!.items.clear()
+                        tabs!!.setFromJSON(jsonReader)
+                    }
 
                     "dashboards" -> {
                         jsonReader.skipValue()
-                        dashboards.setFromJSONRAWString(text)
+                        dashboardsConfiguration.setFromJSONRAWString(text)
                     }
 
                     else -> Log.d("not readed param! ", name)
@@ -272,14 +244,14 @@ class AppSettings private constructor()
         }
 
         if (settingsVersion == 0) {
-            saveTabsSettingsToPrefs(context)
+            saveTabsSettingsToPrefs()
         }
     }
 
 
-    private object Holder { val INSTANCE = AppSettings() }
+    private object Holder { val instance = AppSettings() }
 
     companion object {
-        val instance: AppSettings by lazy { Holder.INSTANCE }
+        val instance: AppSettings by lazy { Holder.instance }
     }
 }

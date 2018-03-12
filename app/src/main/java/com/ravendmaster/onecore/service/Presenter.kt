@@ -1,7 +1,6 @@
 package com.ravendmaster.onecore.service
 
 import android.content.Context
-import android.content.Intent
 import android.net.ConnectivityManager
 import android.os.Handler
 import android.os.Message
@@ -18,32 +17,35 @@ import com.ravendmaster.onecore.Log
 import com.ravendmaster.onecore.R
 import com.ravendmaster.onecore.TabData
 import com.ravendmaster.onecore.TabsCollection
-import com.ravendmaster.onecore.activity.MainActivity
 import com.ravendmaster.onecore.customview.ButtonsSet
 import com.ravendmaster.onecore.customview.MyButton
 import com.ravendmaster.onecore.Utilities
-
-import org.fusesource.hawtbuf.Buffer
+import org.eclipse.paho.client.mqttv3.MqttMessage
 
 import java.util.ArrayList
 import java.util.Timer
 import java.util.TimerTask
 
+
 class Presenter(internal var view: IView) {
 
-    internal var mqttService: MQTTService? = null
+    init {
+        this.view=view
+    }
+    //var mMQTTService : MQTTService? = null
+
 
     fun updateView(view: IView){
         this.view=view;
-        mqttService = MQTTService.instance
     }
+
 
     val unusedTopics: Array<Any>
         get() {
             val unusedTopics = ArrayList<String>()
-            if (mqttService!!.currentSessionTopicList != null) {
-                for (topic in mqttService!!.currentSessionTopicList) {
-                    if (topic.startsWith(mqttService!!.serverPushNotificationTopicRootPath))
+            if (MQTTService.instance!!.currentSessionTopicList != null) {
+                for (topic in MQTTService.instance!!.currentSessionTopicList) {
+                    if (topic.startsWith(MQTTService.instance!!.serverPushNotificationTopicRootPath))
                         continue
                     var topicInUse = false
                     for (dashboard in dashboards!!) {
@@ -61,10 +63,10 @@ class Presenter(internal var view: IView) {
         }
 
     val freeDashboardId: Int
-        get() = mqttService!!.freeDashboardId
+        get() = MQTTService.instance!!.freeDashboardId
 
     val dashboards: ArrayList<Dashboard>?
-        get() = if (mqttService == null) null else mqttService!!.dashboards
+        get() = if (MQTTService.instance == null) null else MQTTService.instance!!.dashboards
 
     val tabs: TabsCollection?
         get() {
@@ -93,17 +95,17 @@ class Presenter(internal var view: IView) {
     internal var interactiveMode = false
 
 
-    val screenActiveTabIndex: Int?
-        get() = if (mqttService == null) null else mqttService!!.screenActiveTabIndex
+    val screenActiveTabIndex: Int
+        get() = if (MQTTService.instance == null) 0 else MQTTService.instance!!.screenActiveTabIndex
 
     val activeDashboardId: Int
-        get() = if (mqttService == null) 0 else mqttService!!.activeTabIndex
+        get() = if (MQTTService.instance == null) 0 else MQTTService.instance!!.activeTabIndex
 
     val widgetsList: ArrayList<WidgetData>?
         get() = getWidgetsListOfTabIndex(activeDashboardId)
 
     val isMQTTBrokerOnline: Boolean
-        get() = mqttService!!.isConnected
+        get() = MQTTService.instance!!.isConnected
 
     internal var mActiveMode: Boolean = false
 
@@ -120,7 +122,7 @@ class Presenter(internal var view: IView) {
     internal var mDelayedPublishValueHandler = object : Handler() {
         override fun handleMessage(msg: android.os.Message) {
             val sendMsgPack = msg.obj as SendMessagePack
-            publishMQTTMessage(sendMsgPack.topic, Buffer(sendMsgPack.value!!.toByteArray()), sendMsgPack.retained!!)
+            publishMQTTMessage(sendMsgPack.topic, sendMsgPack.value!!, sendMsgPack.retained!!)
         }
     }
     //switch
@@ -153,8 +155,8 @@ class Presenter(internal var view: IView) {
     }
 
     fun addNewTab(name: String) {
-        val freeId = MainActivity.presenter!!.freeDashboardId
-        MainActivity.presenter!!.dashboards!!.add(Dashboard(freeId))
+        val freeId = freeDashboardId
+        dashboards!!.add(Dashboard(freeId))
 
         val tabData = TabData()
         tabData.id = freeId
@@ -164,32 +166,32 @@ class Presenter(internal var view: IView) {
         appSettings.addTab(tabData)
     }
 
-    fun saveTabsList(context: Context) {
+    fun saveTabsList() {
         val appSettings = AppSettings.instance
         if (appSettings.settingsVersion == 0) {
             //переход на новую версию сохраненных настроек
             //состав табов храниться в tabs в виде JSON миссива id,name
             appSettings.settingsVersion = 1
-            appSettings.saveConnectionSettingsToPrefs(context)
+            appSettings.saveConnectionSettingsToPrefs()
         }
-        appSettings.saveTabsSettingsToPrefs(context)
+        appSettings.saveTabsSettingsToPrefs()
 
-        MainActivity.presenter!!.onTabPressed(-1)
+        onTabPressed(-1)
 
     }
 
     fun resetCurrentSessionTopicList() {
-        mqttService!!.currentSessionTopicList.clear()
-        //mqttService.setCurrentSessionTopicList(new ArrayList<>());
+        MQTTService.instance!!.currentSessionTopicList.clear()
+        //mMQTTService.setCurrentSessionTopicList(new ArrayList<>());
     }
 
     fun subscribeToAllTopicsInDashboards(appSettings: AppSettings) {
-        mqttService!!.subscribeForInteractiveMode(appSettings)
+        MQTTService.instance!!.subscribeForInteractiveMode(appSettings)
     }
 
     fun widgetSettingsChanged(widget: WidgetData) {
         val appSettings = AppSettings.instance
-        mqttService!!.subscribeForInteractiveMode(appSettings)//достаточно подписаться только на +1 топик
+        MQTTService.instance!!.subscribeForInteractiveMode(appSettings)//достаточно подписаться только на +1 топик
     }
 
     interface IView {
@@ -209,6 +211,8 @@ class Presenter(internal var view: IView) {
         fun onTabSelected()
 
         fun showPopUpMessage(title: String, text: String)
+
+        fun refreshTabState()
     }
 
 
@@ -219,29 +223,29 @@ class Presenter(internal var view: IView) {
     }
 
     fun connectionSettingsChanged() {
-        mqttService!!.connectionSettingsChanged()
+        MQTTService.instance!!.connectionSettingsChanged()
     }
 
-    fun moveWidgetTo(context: Context, widgetData: WidgetData, dashboardID: Int) {
-        val sourceDashboard = mqttService!!.getDashboardByID(activeDashboardId)
-        val destinationDashboard = mqttService!!.getDashboardByID(dashboardID)
+    fun moveWidgetTo(widgetData: WidgetData, dashboardID: Int) {
+        val sourceDashboard = MQTTService.instance!!.getDashboardByID(activeDashboardId)
+        val destinationDashboard = MQTTService.instance!!.getDashboardByID(dashboardID)
         destinationDashboard!!.widgetsList.add(widgetData)
 
         sourceDashboard!!.widgetsList.remove(widgetData)
 
-        sourceDashboard.saveDashboard(context)
-        destinationDashboard.saveDashboard(context)
+        sourceDashboard.saveDashboardToDisk()
+        destinationDashboard.saveDashboardToDisk()
     }
 
     fun moveWidget(context: Context, startColumn: Int, startRow: Int, stopColumn: Int, stopRow: Int) {
 
         Log.d("TAG", "moveWidget: $startColumn $startRow -> $stopColumn $stopRow")
 
-        val srcTab = MainActivity.presenter!!.tabs!!.items[startColumn]
-        val destTab = MainActivity.presenter!!.tabs!!.items[stopColumn]
+        val srcTab = tabs!!.items[startColumn]
+        val destTab = tabs!!.items[stopColumn]
 
-        val sourceDashboard = mqttService!!.getDashboardByID(srcTab.id)//startColumn);
-        val destinationDashboard = mqttService!!.getDashboardByID(destTab.id)//stopColumn);
+        val sourceDashboard = MQTTService.instance!!.getDashboardByID(srcTab.id)//startColumn);
+        val destinationDashboard = MQTTService.instance!!.getDashboardByID(destTab.id)//stopColumn);
 
         val widgetData = sourceDashboard!!.widgetsList[startRow]
 
@@ -250,61 +254,62 @@ class Presenter(internal var view: IView) {
         destinationDashboard!!.widgetsList.add(stopRow, widgetData)
 
 
-        sourceDashboard.saveDashboard(context)
+        sourceDashboard.saveDashboardToDisk()
         if (startColumn != stopColumn) {
-            destinationDashboard.saveDashboard(context)
+            destinationDashboard.saveDashboardToDisk()
         }
-    }
-
-
-    init {
-        mqttService = MQTTService.instance
-
     }
 
     fun onTabPressed(screenIndex: Int) {
         var screenIndex = screenIndex
         if (screenIndex == -1) {
-            screenIndex = mqttService!!.screenActiveTabIndex
+            screenIndex = MQTTService.instance!!.screenActiveTabIndex
         }
         val appSettings = AppSettings.instance
-        mqttService!!.activeTabIndex = appSettings.tabs!!.getDashboardIdByTabIndex(screenIndex)
+        MQTTService.instance!!.activeTabIndex = appSettings.tabs!!.getDashboardIdByTabIndex(screenIndex)
 
-        //Log.d("dashboard orders", "dash id "+mqttService.activeTabIndex);
+        //Log.d("dashboard orders", "dash id "+mMQTTService.activeTabIndex);
 
-        mqttService!!.screenActiveTabIndex = screenIndex
+        MQTTService.instance!!.screenActiveTabIndex = screenIndex
         view.onTabSelected()
     }
 
 
-    fun onCreate(appCompatActivity: AppCompatActivity) {
-        if (mqttService == null) return
-        mqttService!!.OnCreate(appCompatActivity)
+    fun onCreate() {
+        if (MQTTService.instance != null) {
 
+            val handlerPayloadChanged = object : Handler() {
+                override fun handleMessage(msg: android.os.Message) {
+                    val topic = msg.obj as String
+                    startPayloadChangedNotification(topic)
+                }
+            }
+            MQTTService.instance!!.setPayLoadChangeHandler(handlerPayloadChanged)
+        }
     }
 
     fun initDemoDashboard() {
-        mqttService!!.getDashboardByID(activeDashboardId)!!.initDemoDashboard()
+        MQTTService.instance!!.getDashboardByID(activeDashboardId)!!.initDemoDashboard()
     }
 
-    fun saveActiveDashboard(context: Context, tabIndex: Int) {
-        val activeDashboard = mqttService!!.getDashboardByID(tabIndex)
-        activeDashboard?.saveDashboard(context)
+    fun saveActiveDashboardToDisk(tabIndex: Int) {
+        val activeDashboard = MQTTService.instance!!.getDashboardByID(tabIndex)
+        activeDashboard?.saveDashboardToDisk()
     }
 
-    fun saveAllDashboards(context: Context) {
-        for (dashboard in mqttService!!.dashboards!!) {
-            dashboard.saveDashboard(context)
+    fun saveAllDashboards() {
+        for (dashboard in MQTTService.instance!!.dashboards!!) {
+            dashboard.saveDashboardToDisk()
         }
     }
 
     fun createDashboardsBySettings(forceReload : Boolean = false) {
-        mqttService!!.createDashboardsBySettings(forceReload)
+        MQTTService.instance!!.createDashboardsBySettings(forceReload)
     }
 
 
     fun clearDashboard() {
-        val activeDashboard = mqttService!!.getDashboardByID(activeDashboardId)
+        val activeDashboard = MQTTService.instance!!.getDashboardByID(activeDashboardId)
         activeDashboard?.clear()
     }
 
@@ -313,8 +318,8 @@ class Presenter(internal var view: IView) {
         for (dashboard in dashboards!!) {
             val index = dashboard.widgetsList.indexOf(widgetData)
             if (index != -1) {
-                mqttService!!.activeTabIndex = dashboard.id
-                mqttService!!.screenActiveTabIndex = tabIndex
+                MQTTService.instance!!.activeTabIndex = dashboard.id
+                MQTTService.instance!!.screenActiveTabIndex = tabIndex
                 return index
             }
             tabIndex++
@@ -323,11 +328,11 @@ class Presenter(internal var view: IView) {
     }
 
     fun addWidget(widgetData: WidgetData) {
-        mqttService!!.getDashboardByID(activeDashboardId)!!.widgetsList.add(widgetData)
+        MQTTService.instance!!.getDashboardByID(activeDashboardId)!!.widgetsList.add(widgetData)
     }
 
     fun getWidgetByIndex(index: Int): WidgetData {
-        return mqttService!!.getDashboardByID(activeDashboardId)!!.widgetsList[index]
+        return MQTTService.instance!!.getDashboardByID(activeDashboardId)!!.widgetsList[index]
     }
 
     fun removeWidget(widgetData: WidgetData) {
@@ -342,18 +347,19 @@ class Presenter(internal var view: IView) {
     }
 
     fun getWidgetsListOfTabIndex(tabIndex: Int): ArrayList<WidgetData>? {
-        val mqttService = this.mqttService ?: return null
+        val mqttService = MQTTService.instance ?: return null
         val dashboard = mqttService.getDashboardByID(tabIndex) ?: return null
         return dashboard.widgetsList
     }
 
     fun getMQTTCurrentValue(topic: String): String {
-        return mqttService!!.getMQTTCurrentValue(topic)
+        return MQTTService.instance!!.getMQTTCurrentValue(topic)
     }
 
-    fun publishMQTTMessage(topic: String?, payload: Buffer, retained: Boolean) {
-
-        mqttService!!.publishMQTTMessage(topic!!, payload, retained)
+    fun publishMQTTMessage(topic: String?, text: String, retained: Boolean) {
+        val message=MqttMessage(text.toByteArray())
+        message.isRetained=retained
+        MQTTService.instance!!.publishMQTTMessage(topic!!, message)
     }
 
     fun isOnline(context: Context): Boolean {
@@ -365,66 +371,61 @@ class Presenter(internal var view: IView) {
     }
 
     fun setCurrentMQTTValue(topic: String, value: String) {
-        mqttService!!.currentMQTTValues.put(topic, value)
+        MQTTService.instance!!.currentMQTTValues.put(topic, value)
     }
 
     fun onPause() {
         Log.d(javaClass.name, "onPause()")
 
-        val service_intent = Intent(view.appCompatActivity, MQTTService::class.java)
-        service_intent.action = "pause"
-        view.appCompatActivity.startService(service_intent)
+        //val service_intent = Intent(view.appCompatActivity, MQTTService::class.java)
+        //service_intent.action = "pause"
+        //view.appCompatActivity.startService(service_intent)
 
-        mTimerRefreshMQTTConnectionStatus!!.cancel()
-        mTimerRefreshMQTTConnectionStatus = null
+        //mTimerRefreshMQTTConnectionStatus!!.cancel()
+        //mTimerRefreshMQTTConnectionStatus = null
 
         mActiveMode = false
     }
 
-    fun onDestroy(appCompatActivity: AppCompatActivity) {}
+    fun onDestroy() {
+        //appCompatActivity.stopService(mMQTTServiceIntent)
+
+        MQTTService.instance!!.interactiveMode(false)
+    }
 
     fun onResume(appCompatActivity: AppCompatActivity) {
 
+        MQTTService.instance!!.interactiveMode(true)
+
         mActiveMode = true
 
-        val service_intent = Intent(appCompatActivity, MQTTService::class.java)
-        service_intent.action = "interactive"
-        appCompatActivity.startService(service_intent)
-        mqttService = MQTTService.instance
-        Log.d(javaClass.name, "mqttService=MQTTService.getInstance()=" + mqttService!!)
+        //val service_intent = Intent(appCompatActivity, MQTTService::class.java)
+        //service_intent.action = "interactive"
+        //appCompatActivity.startService(service_intent)
+        //MQTTService.instance = MQTTService.instance!!
+        Log.d(javaClass.name, "mMQTTService=MQTTService.getInstance()=" + MQTTService.instance!!)
 
 
 
-        mTimerRefreshMQTTConnectionStatus = Timer()
-        mTimerRefreshMQTTConnectionStatus!!.schedule(object : TimerTask() {
-            override fun run() {
-                if (mqttService == null) return
-                if (!mActiveMode) return
-                mqttBrokerStatus = if (isMQTTBrokerOnline) CONNECTION_STATUS.CONNECTED else CONNECTION_STATUS.DISCONNECTED
-                connectionStatus = if (isOnline(appCompatActivity)) CONNECTION_STATUS.CONNECTED else CONNECTION_STATUS.DISCONNECTED
-                if (mqttService != null) {
-                    handlerNeedRefreshMQTTConnectionStatus.sendEmptyMessage(0)
+        if(mTimerRefreshMQTTConnectionStatus==null) {
+            mTimerRefreshMQTTConnectionStatus = Timer()
+            mTimerRefreshMQTTConnectionStatus!!.schedule(object : TimerTask() {
+                override fun run() {
+                    if (MQTTService.instance == null) return
+                    if (!mActiveMode) return
+                    mqttBrokerStatus = if (isMQTTBrokerOnline) CONNECTION_STATUS.CONNECTED else CONNECTION_STATUS.DISCONNECTED
+                    connectionStatus = if (isOnline(appCompatActivity)) CONNECTION_STATUS.CONNECTED else CONNECTION_STATUS.DISCONNECTED
+                    if (MQTTService.instance != null) {
+                        handlerNeedRefreshMQTTConnectionStatus.sendEmptyMessage(0)
+                    }
                 }
-            }
-        }, 0, 500)
-
-        if(dashboards==null){
-            createDashboardsBySettings()
+            }, 0, 500)
         }
 
+        //if(dashboards==null){
+        //    createDashboardsBySettings()
+        //}
         view.onTabSelected()
-
-        if (mqttService != null) {
-
-            val handlerPayloadChanged = object : Handler() {
-                override fun handleMessage(msg: android.os.Message) {
-                    val topic = msg.obj as String
-                    startPayloadChangedNotification(topic)
-                }
-            }
-            mqttService!!.setPayLoadChangeHandler(handlerPayloadChanged)
-        }
-
     }
 
     //обход виджетов в поисках подписки на изменения для оповещения
@@ -433,7 +434,7 @@ class Presenter(internal var view: IView) {
         var tabIndex = 0
         for (tabData in tabs!!.items) {
 
-            val dashboard = mqttService!!.getDashboardByID(tabData.id) ?: continue
+            val dashboard = MQTTService.instance!!.getDashboardByID(tabData.id) ?: continue
 
             val widgetsList = dashboard.widgetsList//tabIndex).getWidgetsList();
             var index = 0
@@ -452,7 +453,10 @@ class Presenter(internal var view: IView) {
                         }
                     }
                 }
-                if (needNotify) view.notifyPayloadOfWidgetChanged(tabIndex, index)
+                if (needNotify) {
+                    view.notifyPayloadOfWidgetChanged(tabIndex, index)
+
+                }
                 index++
             }
             tabIndex++
@@ -512,7 +516,7 @@ class Presenter(internal var view: IView) {
     }
 
     fun evalJS(contextWidgetData: WidgetData, value: String, code: String): String? {
-        return mqttService!!.evalJS(contextWidgetData, value, code)
+        return MQTTService.instance!!.evalJS(contextWidgetData, value, code)
     }
 
     private fun getSeekDisplayValue(widget: WidgetData, seekBar: SeekBar): String {
@@ -549,7 +553,7 @@ class Presenter(internal var view: IView) {
 
         if (widget.publishValue != "") {
             widget.noUpdate = true
-            publishMQTTMessage(getTopicForPublishValue(widget), Buffer(widget.publishValue.toByteArray()), widget.retained)
+            publishMQTTMessage(getTopicForPublishValue(widget), widget.publishValue, widget.retained)
         }
     }
 
@@ -557,7 +561,7 @@ class Presenter(internal var view: IView) {
         val widget = button.tag as WidgetData
         widget.noUpdate = false
         if (widget.publishValue2 != "") {
-            publishMQTTMessage(getTopicForPublishValue(widget), Buffer(widget.publishValue2.toByteArray()), widget.retained)
+            publishMQTTMessage(getTopicForPublishValue(widget), widget.publishValue2, widget.retained)
         }
         interactiveMode = false
         view.onRefreshDashboard()
@@ -569,7 +573,7 @@ class Presenter(internal var view: IView) {
         handlerNeedRefreshDashboard.removeMessages(0)
         val widget = buttonsSet.tag as WidgetData
         if (widget.publishValue != "") {
-            publishMQTTMessage(getTopicForPublishValue(widget), Buffer(buttonsSet.getPublishValueByButtonIndex(index).toByteArray()), widget.retained)
+            publishMQTTMessage(getTopicForPublishValue(widget), buttonsSet.getPublishValueByButtonIndex(index), widget.retained)
         }
         view.onRefreshDashboard()
     }
@@ -580,7 +584,7 @@ class Presenter(internal var view: IView) {
         val widget_switch = view as Switch
         val newValue = if (widget_switch.isChecked) widget.publishValue else widget.publishValue2
 
-        publishMQTTMessage(getTopicForPublishValue(widget), Buffer(newValue.toByteArray()), true)
+        publishMQTTMessage(getTopicForPublishValue(widget), newValue, true)
     }
 
     fun onLongClick(v: View): Boolean {
@@ -595,7 +599,7 @@ class Presenter(internal var view: IView) {
 
     //new value for value home_screen_widget
     fun sendMessageNewValue(newValue: String) {
-        publishMQTTMessage(widgetDataOfNewValueSender.getPubTopic(0), Buffer(newValue.toByteArray()), false)
+        publishMQTTMessage(widgetDataOfNewValueSender.getPubTopic(0), newValue, false)
     }
 
     //combo box
@@ -604,7 +608,7 @@ class Presenter(internal var view: IView) {
     }
 
     fun sendComboBoxNewValue(newValue: String) {
-        publishMQTTMessage(getTopicForPublishValue(widgetDataOfNewValueSender), Buffer(newValue.toByteArray()), widgetDataOfNewValueSender.retained)
+        publishMQTTMessage(getTopicForPublishValue(widgetDataOfNewValueSender), newValue, widgetDataOfNewValueSender.retained)
     }
 
     fun onMainMenuItemSelected() {}
@@ -613,5 +617,9 @@ class Presenter(internal var view: IView) {
 
 
         internal var editMode = false
+    }
+
+    fun publishConfig() {
+        MQTTService.instance!!.publishConfig()
     }
 }

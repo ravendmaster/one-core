@@ -157,7 +157,7 @@ class WidgetData {
 
     fun getPrimaryColor(index: Int): Int {
 
-        return if (primaryColors[index] == null) MyColors.asBlack else primaryColors[index]!!
+        return if (primaryColors[index] == null) MyColors.ltGray else primaryColors[index]!!
     }
 
     fun setPrimaryColor(index: Int, color: Int) {

@@ -126,52 +126,55 @@
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/transforms" />
       <excludeFolder url="file://$MODULE_DIR$/build/kotlin" />
       <excludeFolder url="file://$MODULE_DIR$/build/outputs" />
-      <excludeFolder url="file://$MODULE_DIR$/build/reports" />
       <excludeFolder url="file://$MODULE_DIR$/build/tmp" />
     </content>
-    <orderEntry type="jdk" jdkName="Android API 26 Platform" jdkType="Android SDK" />
+    <orderEntry type="jdk" jdkName="Android API 27 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.2.10@jar" level="project" />
+    <orderEntry type="library" name="com.android.support:animated-vector-drawable-27.1.0" level="project" />
     <orderEntry type="library" name="com.google.firebase:firebase-iid-license-11.4.2" level="project" />
+    <orderEntry type="library" name="com.android.support:appcompat-v7-27.1.0" level="project" />
     <orderEntry type="library" name="com.google.android.gms:play-services-tasks-license-11.4.2" level="project" />
-    <orderEntry type="library" name="com.android.support:support-media-compat-26.1.0" level="project" />
-    <orderEntry type="library" name="com.android.support:recyclerview-v7-26.1.0" level="project" />
     <orderEntry type="library" scope="TEST" name="junit:junit:4.12@jar" level="project" />
-    <orderEntry type="library" name="android.arch.lifecycle:common:1.0.0@jar" level="project" />
     <orderEntry type="library" name="__local_aars__:D.\MyDocs\GitHub\one-core\app\libs\mqtt-client-1.13-SNAPSHOT-uber.jar:unspecified@jar" level="project" />
-    <orderEntry type="library" name="com.lmax:disruptor:3.3.0@jar" level="project" />
-    <orderEntry type="library" name="com.android.support:support-fragment-26.1.0" level="project" />
-    <orderEntry type="library" name="org.jetbrains.kotlin:kotlin-stdlib:1.2.10@jar" level="project" />
-    <orderEntry type="library" name="com.android.support:support-vector-drawable-26.1.0" level="project" />
-    <orderEntry type="library" name="android.arch.lifecycle:runtime-1.0.0" level="project" />
-    <orderEntry type="library" name="com.android.support:appcompat-v7-26.1.0" level="project" />
+    <orderEntry type="library" name="com.android.support:support-core-utils-27.1.0" level="project" />
+    <orderEntry type="library" name="android.arch.core:common:1.1.0@jar" level="project" />
+    <orderEntry type="library" name="com.android.support:support-annotations:27.1.0@jar" level="project" />
+    <orderEntry type="library" name="com.android.support:recyclerview-v7-27.1.0" level="project" />
+    <orderEntry type="library" name="com.android.support:support-media-compat-25.2.0" level="project" />
+    <orderEntry type="library" name="com.jayway.jsonpath:json-path:2.4.0@jar" level="project" />
+    <orderEntry type="library" name="org.jetbrains.kotlin:kotlin-stdlib:1.2.30@jar" level="project" />
     <orderEntry type="library" name="com.google.android.gms:play-services-basement-license-11.4.2" level="project" />
-    <orderEntry type="library" name="com.android.support:support-annotations:26.1.0@jar" level="project" />
-    <orderEntry type="library" name="org.mapdb:mapdb:1.0.6@jar" level="project" />
     <orderEntry type="library" name="com.google.android.gms:play-services-basement-11.4.2" level="project" />
     <orderEntry type="library" name="com.google.firebase:firebase-analytics-11.4.2" level="project" />
-    <orderEntry type="library" name="com.android.support:support-core-utils-26.1.0" level="project" />
-    <orderEntry type="library" name="com.android.support:support-core-ui-26.1.0" level="project" />
+    <orderEntry type="library" name="org.ow2.asm:asm:5.0.4@jar" level="project" />
     <orderEntry type="library" name="com.google.firebase:firebase-iid-11.4.2" level="project" />
-    <orderEntry type="library" name="com.android.support:support-compat-26.1.0" level="project" />
+    <orderEntry type="library" name="net.minidev:accessors-smart:1.2@jar" level="project" />
+    <orderEntry type="library" name="com.android.support:support-v4-25.2.0" level="project" />
+    <orderEntry type="library" name="org.slf4j:slf4j-api:1.7.25@jar" level="project" />
+    <orderEntry type="library" name="org.eclipse.paho:org.eclipse.paho.android.service:1.1.1@jar" level="project" />
+    <orderEntry type="library" name="com.android.support:support-vector-drawable-27.1.0" level="project" />
+    <orderEntry type="library" name="android.arch.lifecycle:runtime-1.1.0" level="project" />
+    <orderEntry type="library" name="android.arch.lifecycle:common:1.1.0@jar" level="project" />
+    <orderEntry type="library" name="com.android.support:cardview-v7-27.1.0" level="project" />
     <orderEntry type="library" scope="TEST" name="org.hamcrest:hamcrest-core:1.3@jar" level="project" />
     <orderEntry type="library" name="com.google.firebase:firebase-common-11.4.2" level="project" />
-    <orderEntry type="library" name="android.arch.core:common:1.0.0@jar" level="project" />
+    <orderEntry type="library" name="com.android.support:support-compat-27.1.0" level="project" />
     <orderEntry type="library" name="com.google.android.gms:play-services-tasks-11.4.2" level="project" />
+    <orderEntry type="library" name="net.minidev:json-smart:2.3@jar" level="project" />
+    <orderEntry type="library" name="android.arch.lifecycle:viewmodel-1.1.0" level="project" />
+    <orderEntry type="library" name="com.android.support:support-core-ui-27.1.0" level="project" />
     <orderEntry type="library" name="com.google.firebase:firebase-core-11.4.2" level="project" />
     <orderEntry type="library" name="com.google.firebase:firebase-common-license-11.4.2" level="project" />
-    <orderEntry type="library" name="com.android.support:support-v4-26.1.0" level="project" />
-    <orderEntry type="library" name="io.netty:netty-all:4.0.25.Final@jar" level="project" />
     <orderEntry type="library" name="com.squareup.duktape:duktape-android-0.9.5" level="project" />
+    <orderEntry type="library" name="android.arch.lifecycle:livedata-core-1.1.0" level="project" />
+    <orderEntry type="library" name="org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.2.30@jar" level="project" />
     <orderEntry type="library" name="org.jetbrains:annotations:13.0@jar" level="project" />
-    <orderEntry type="library" name="com.android.support:animated-vector-drawable-26.1.0" level="project" />
+    <orderEntry type="library" name="org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.1.0@jar" level="project" />
+    <orderEntry type="library" name="com.android.support:support-fragment-27.1.0" level="project" />
     <orderEntry type="library" name="com.google.firebase:firebase-analytics-impl-11.4.2" level="project" />
     <orderEntry type="library" name="com.google.firebase:firebase-analytics-impl-license-11.4.2" level="project" />
-    <orderEntry type="library" name="com.android.support:cardview-v7-26.1.0" level="project" />
     <orderEntry type="library" name="com.github.woxthebox:draglistview-1.2.8" level="project" />
     <orderEntry type="library" name="com.google.firebase:firebase-analytics-license-11.4.2" level="project" />
-    <orderEntry type="module" module-name="netty_parser" />
-    <orderEntry type="module" module-name="parser_commons" />
-    <orderEntry type="module" module-name="broker" />
+    <orderEntry type="library" name="android.arch.core:runtime-1.1.0" level="project" />
   </component>
 </module>

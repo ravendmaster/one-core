@@ -1,8 +1,8 @@
 <component name="libraryTable">
   <library name="com.squareup.duktape:duktape-android-0.9.5">
     <CLASSES>
-      <root url="jar://C:/Users/Public/.gradle/caches/transforms-1/files-1.1/duktape-android-0.9.5.aar/8f61dec9306693cbe85459f61ca56cad/jars/classes.jar!/" />
-      <root url="file://C:/Users/Public/.gradle/caches/transforms-1/files-1.1/duktape-android-0.9.5.aar/8f61dec9306693cbe85459f61ca56cad/res" />
+      <root url="jar://C:/Users/Public/.gradle/caches/transforms-1/files-1.1/duktape-android-0.9.5.aar/156eb215028911a2b346616c9ed5446a/jars/classes.jar!/" />
+      <root url="file://C:/Users/Public/.gradle/caches/transforms-1/files-1.1/duktape-android-0.9.5.aar/156eb215028911a2b346616c9ed5446a/res" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>

@@ -120,9 +120,9 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
                 var widget: WidgetData? = null
                 if (mCreateNew!! || mCreateCopy!!) {
                     widget = WidgetData()
-                    MainActivity.presenter.addWidget(widget)
+                    MainActivity.getPresenter().addWidget(widget)
                 } else {
-                    widget = MainActivity.presenter.getWidgetByIndex(widget_index)
+                    widget = MainActivity.getPresenter().getWidgetByIndex(widget_index)
                 }
 
                 widget.type = widgetType
@@ -168,9 +168,15 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
 
                 widget.formatMode = editText_format_mode.text.toString()
 
-                MainActivity.presenter.saveActiveDashboard(applicationContext, MainActivity.presenter.activeDashboardId)
+                MainActivity.getPresenter().saveActiveDashboardToDisk(MainActivity.getPresenter().activeDashboardId)
 
-                MainActivity.presenter.widgetSettingsChanged(widget)
+                //val activeDashboard=MQTTService.instance!!.getDashboardByID(MainActivity.getPresenter().activeDashboardId)
+
+
+                    //dashboardsConfiguration.put(MainActivity.getPresenter().activeDashboardId, file.readText())
+
+
+                MainActivity.getPresenter().widgetSettingsChanged(widget)
 
                 finish()
             }
@@ -508,11 +514,11 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
         widget_index = intent.getIntExtra("widget_index", 0)
 
         if (mCreateCopy!!) {
-            tempWidgetData = MainActivity.presenter.getWidgetByIndex(widget_index)
+            tempWidgetData = MainActivity.getPresenter().getWidgetByIndex(widget_index)
         } else if (mCreateNew!!) {
             tempWidgetData = WidgetData()
         } else {
-            tempWidgetData = MainActivity.presenter.getWidgetByIndex(widget_index)
+            tempWidgetData = MainActivity.getPresenter().getWidgetByIndex(widget_index)
         }
 
         widgetType = tempWidgetData.type
@@ -644,7 +650,7 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     fun OnClickHelp(view: View) {
-        MainActivity.presenter.OnClickHelp(this, view)
+        MainActivity.getPresenter().OnClickHelp(this, view)
     }
 
     companion object {

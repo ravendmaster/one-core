@@ -6,8 +6,11 @@ import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.os.*
-import android.support.v7.app.AppCompatActivity
+import android.provider.Settings
+import android.support.annotation.RequiresApi
+import android.support.v4.app.NotificationCompat
 import android.util.JsonReader
+import com.jayway.jsonpath.JsonPath
 
 import com.ravendmaster.onecore.Utilities
 import com.ravendmaster.onecore.customview.Graph
@@ -17,16 +20,14 @@ import com.ravendmaster.onecore.Log
 import com.ravendmaster.onecore.activity.MainActivity
 import com.ravendmaster.onecore.R
 import com.squareup.duktape.Duktape
-import org.eclipse.moquette.server.Server
+import org.eclipse.paho.android.service.MqttAndroidClient
+import org.eclipse.paho.client.mqttv3.*
 
-import org.fusesource.hawtbuf.Buffer
-import org.fusesource.mqtt.client.QoS
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.*
 
-import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.zip.ZipEntry
@@ -34,18 +35,18 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 
-class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
-    private var currentConnectionState: Int = 0
+class MQTTService() : Service() {
+
+    init {
+        Log.d(javaClass.name, "constructor MQTTService()")
+    }
 
     private var push_topic: String? = null
-
     private var currentDataVersion = 0
-
-    var callbackMQTTClient = CallbackMQTTClient(this)
-
+    var mqttAndroidClient : MqttAndroidClient? = null
     var dashboards: ArrayList<Dashboard>? = null
 
-    private var mqttBroker = org.eclipse.moquette.server.Server()
+    //private var mqttBroker = org.eclipse.moquette.server.Server()
 
     val freeDashboardId: Int
         get() {
@@ -56,14 +57,14 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
             return result + 1
         }
 
-    private val lastReceivedMessagesByTopic: HashMap<String, String>
+    private var lastReceivedMessagesByTopic: HashMap<String, String>? = null
 
     var currentMQTTValues: HashMap<String, String> = HashMap()
 
     var activeTabIndex = 0
     var screenActiveTabIndex = 0
 
-    private val duktape: Duktape
+    private var duktape: Duktape? = null
 
     private var contextWidgetData: WidgetData? = null
 
@@ -72,24 +73,50 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
             return getMQTTCurrentValue(topic)
         }
 
-        override fun publish(topic: String, payload: String) {
-            publishMQTTMessage(topic, Buffer(payload.toByteArray()), false)
+        override fun publish(topic: String, text: String) {
+            publishMQTTMessage(topic, textMessage(text, false))
         }
 
-        override fun publishr(topic: String, payload: String) {
-            publishMQTTMessage(topic, Buffer(payload.toByteArray()), true)
+        override fun publishr(topic: String, text: String) {
+            publishMQTTMessage(topic, textMessage(text, true))
         }
     }
+
+    fun textMessage(text: String, retained: Boolean): MqttMessage {
+        val message = MqttMessage(text.toByteArray())
+        message.isRetained = retained
+        return message
+    }
+
 
     private var notifier: INotifier = object : INotifier {
         override fun push(message: String) {
-            publishMQTTMessage(getServerPushNotificationTopicForTextMessage(contextWidgetData!!.uid.toString()), Buffer(message.toByteArray()), true)
+            publishMQTTMessage(getServerPushNotificationTopicForTextMessage(contextWidgetData!!.uid.toString()), textMessage(message, true))
         }
 
         override fun stop() {
-            publishMQTTMessage(getServerPushNotificationTopicForTextMessage(contextWidgetData!!.uid.toString()), Buffer("".toByteArray()), true)
+            publishMQTTMessage(getServerPushNotificationTopicForTextMessage(contextWidgetData!!.uid.toString()), textMessage("", true))
         }
     }
+
+    private var jsonPath: IJSONPath = object : IJSONPath {
+        override fun read(text: String, path: String): String {
+            val ctx = JsonPath.parse(text)
+            return ctx.read<Object>(path).toString()
+        }
+    }
+
+    private var valueData: IValue = object : IValue {
+        override fun get(): String {
+            return tempValue
+        }
+    }
+
+    val publishConfigTopicRootPath: String
+        get() {
+            val rootPushTopic = AppSettings.instance.push_notifications_subscribe_topic
+            return rootPushTopic.replace("#", "") + "\$config"
+        }
 
     //корень топиков от сервера приложения
     val serverPushNotificationTopicRootPath: String
@@ -98,7 +125,7 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
             return rootPushTopic.replace("#", "") + "\$server"
         }
 
-    private val topicsForHistoryCollect: HashMap<String, String>
+    val topicsForHistoryCollect: HashMap<String, String>
         get() {
             val graph_topics = HashMap<String, String>()
             for (dashboard in dashboards!!) {
@@ -132,51 +159,14 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
             return graphTopics
         }
 
-    private var topicsForHistory: HashMap<String, String>? = null
+    var topicsForHistory: HashMap<String, String>? = null
     private var topicsForLive: HashMap<String, String>? = null
     var SERVER_DATAPACK_NAME = ""
 
-    private var historyCollector: HistoryCollector? = null
-
-
-    private val allInteractiveTopics: ArrayList<String>
-        get() {
-            val result = ArrayList<String>()
-
-            createDashboardsBySettings() //!!!
-
-            for (dashboard in dashboards!!) {
-                for (widgetData in dashboard.widgetsList) {
-
-                    for (i in 0..3) {
-                        var topic = widgetData.getSubTopic(i)
-
-
-                        if (!topic.isEmpty()) {
-
-
-                            if (result.indexOf(topic) == -1 && topic[0]!='%') {
-                                result.add(topic)
-                            }
-                        }
-                        /*
-                        topic += '$'
-                        if (!topic.isEmpty()) {
-                            if (result.indexOf(topic) == -1) {
-                                result.add(topic)
-                            }
-                        }
-                        */
-
-                    }
-                }
-            }
-
-            return result
-        }
+    var historyCollector: HistoryCollector? = null
 
     val isConnected: Boolean
-        get() = callbackMQTTClient.isConnected
+        get() = mqttAndroidClient!!.isConnected
 
     private var mPayloadChanged: Handler? = null
 
@@ -198,41 +188,38 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         return value ?: ""
     }
 
-    fun OnCreate(appCompatActivity: AppCompatActivity) {
-        super.onCreate()
-
-
-
-        val context = applicationContext
-        val appSettings = AppSettings.instance
-        appSettings.readFromPrefs(context)
-        createDashboardsBySettings()
-
-        activeTabIndex = appSettings.tabs!!.getDashboardIdByTabIndex(screenActiveTabIndex)
-
-
-
-        if (Build.VERSION.SDK_INT >= 26) {
-            val foregroundIntent = Intent(this, MainActivity::class.java)
-            foregroundIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            foregroundIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            val pendingIntent = PendingIntent.getActivity(this, 0, foregroundIntent, 0)
-            val builder = Notification.Builder(this)
-                    //.setContentTitle("Application server mode is on")
-                    //.setSmallIcon(R.drawable.ic_playblack)
-                    .setContentIntent(pendingIntent)
-                    //.setOngoing(true).setSubText(text1)
-                    .setAutoCancel(true)
-                startForeground(1, builder.build())
-        }
-
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun createNotificationChannel(): String{
+        val channelId = "my_service"
+        val channelName = "My Background Service"
+        val chan = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_NONE)
+        chan.lightColor = Color.BLUE
+        chan.lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+        val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        service.createNotificationChannel(chan)
+        return channelId
     }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun createPushNotificationChannel(): String{
+        val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "PushNotification"
+        val channelName = getString(R.string.ChanelNamePushNotification)
+        val chan = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
+        chan.lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+        chan.enableLights(true)
+        chan.lightColor=Color.RED
+        service.createNotificationChannel(chan)
+        return channelId
+    }
+
+    var tempValue:String=""
 
     fun evalJS(contextWidgetData: WidgetData, value: String?, code: String): String? {
         this.contextWidgetData = contextWidgetData
         var result = value
         try {
-            result = duktape.evaluate("var value='$value'; $code; String(value);")
+            result = duktape!!.evaluate("var value==ValueData.get(); $code; String(value);")
             processReceiveSimplyTopicPayloadData("%onJSErrors", "no errors");
         } catch (e: Exception) {
             Log.d("script", "exec: " + e)
@@ -256,6 +243,14 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         fun stop()
     }
 
+    internal interface IJSONPath {
+        fun read(text: String, path: String): String
+    }
+
+    internal interface IValue {
+        fun get(): String
+    }
+
     fun getServerPushNotificationTopicForTextMessage(id: String): String { //для текстовых сообщений
         return serverPushNotificationTopicRootPath + "/message" + Integer.toHexString(id.hashCode())
     }
@@ -269,6 +264,7 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         dashboards = ArrayList()
 
         if (AppSettings.instance.settingsVersion == 0) {
+            /*
             //старый способ
             val tabs = AppSettings.instance.tabs
             for (i in 0..3) {
@@ -278,13 +274,15 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
                     continue
                 }
                 val tempDashboard = Dashboard(i)
-                tempDashboard.loadDashboard()
-                dashboards!!.add(tempDashboard)
+                tempDashboard.updateFromSettings()
+                dashboardsConfiguration!!.add(tempDashboard)
             }
+            */
+
         } else {
             for (tabData in AppSettings.instance.tabs!!.items) {
                 val tempDashboard = Dashboard(tabData.id)
-                tempDashboard.loadDashboard()
+                tempDashboard.updateFromSettings()
                 dashboards!!.add(tempDashboard)
 
             }
@@ -293,272 +291,15 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
 
     }
 
-    init {
-        Log.d(javaClass.name, "constructor MQTTService()")
-        instance = this
-
-        mqttBroker.startServer()
-
-        duktape = Duktape.create()
-        duktape.bind("MQTT", IMQTT::class.java, imqtt)
-        duktape.bind("Notifier", INotifier::class.java, notifier)
-        Log.d(javaClass.name, "duktape start")
-
-
-        lastReceivedMessagesByTopic = HashMap()
-
-        currentMQTTValues = HashMap()
-
-        currentConnectionState = STATE_DISCONNECTED
-        Thread(object : Runnable {
-            override fun run() {
-                while (true) {
-                    if (connectionInUnActualMode) {
-                        connectionInUnActualMode = false
-                        if (isConnected) callbackMQTTClient.disconnect()
-                        while (isConnected) {
-                            try {
-                                Thread.sleep(100)
-                            } catch (e: InterruptedException) {
-                                e.printStackTrace()
-                            }
-
-                        }
-
-                        val appSettings = AppSettings.instance
-                        appSettings.readFromPrefs(applicationContext)
-                        callbackMQTTClient.disconnect()//!!!!! предыдущие соединения тоже соединяться с новыми параметры, поэтому отключаем их силой
-                        callbackMQTTClient.connect(appSettings)
-                        subscribeForState(STATE_FULL_CONNECTED)
-                    }
-
-
-                    if (!inRealForegroundMode && MQTTService.clientCountsInForeground > 0) {
-
-                        val appSettings = AppSettings.instance
-
-                        appSettings.readFromPrefs(applicationContext)
-                        if (isConnected) {
-                            subscribeForState(STATE_FULL_CONNECTED)
-                        } else {
-                            callbackMQTTClient.disconnect()//предыдущие соединения тоже соединятся с новыми параметры, поэтому отключаем их принудительно
-                            callbackMQTTClient.connect(appSettings)
-
-                            while (!isConnected) {
-                                try {
-                                    Thread.sleep(100)
-                                } catch (e: InterruptedException) {
-                                    e.printStackTrace()
-                                }
-
-                                if (connectionInUnActualMode) {
-                                    break
-                                }
-                            }
-                            if (connectionInUnActualMode) continue
-
-                            subscribeForState(STATE_FULL_CONNECTED)
-
-                        }
-
-                        inRealForegroundMode = true
-
-                    }
-
-                    if (MQTTService.clientCountsInForeground == 0) {
-                        idleTime += 1
-                    } else {
-                        idleTime = 0
-                    }
-
-                    try {
-                        Thread.sleep(100)
-                    } catch (e: InterruptedException) {
-                        e.printStackTrace()
-                    }
-
-                    if (inRealForegroundMode and (idleTime > 100)) { //100*100 = 10 sec
-                        val appSettings = AppSettings.instance
-                        appSettings.readFromPrefs(applicationContext)
-
-                        if (!appSettings.server_mode) {
-                            Log.d(javaClass.name, "Go to the background.")
-                            if (appSettings.connection_in_background && !appSettings.push_notifications_subscribe_topic.isEmpty()) {
-                                if (!isConnected) {
-                                    callbackMQTTClient.connect(appSettings)
-                                } else {
-                                    subscribeForState(STATE_HALF_CONNECTED)
-                                }
-                            } else {
-                                callbackMQTTClient.disconnect()
-                            }
-                            inRealForegroundMode = false
-
-                        } else {
-
-                        }
-                    }
-
-                }
-
-            }
-        }).start()
-
-
-        Thread(Runnable {
-            //история данных
-
-            try {
-                Thread.sleep(5000)
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
-            }
-
-            val appSettings = AppSettings.instance
-
-            while (true) {
-
-                if (appSettings.server_mode && db != null && dashboards != null) {
-
-                    topicsForHistory = topicsForHistoryCollect
-
-                    //аггрегация данных для графиков
-                    val universalPackJson = JSONObject()
-                    val topicsData = JSONArray()
-                    try {
-                        val strEnum = Collections.enumeration(topicsForHistory!!.keys)
-                        while (strEnum.hasMoreElements()) {
-                            val topicForHistoryData = strEnum.nextElement()//widgetData.getSubTopic(0).substring(0, widgetData.getSubTopic(0).length() - 4);
-                            val historyData = prepareHistoryGraphicData(topicForHistoryData, intArrayOf(Graph.PERIOD_TYPE_1_HOUR, Graph.PERIOD_TYPE_4_HOUR, Graph.PERIOD_TYPE_1_DAY, Graph.PERIOD_TYPE_1_WEEK, Graph.PERIOD_TYPE_1_MOUNT))
-                            val oneTopicData = JSONObject()
-                            oneTopicData.put("topic", topicForHistoryData + Graph.HISTORY_TOPIC_SUFFIX)
-                            oneTopicData.put("payload", historyData)
-                            topicsData.put(oneTopicData)
-                            Log.d("servermode", "source len:" + historyData.length)
-                        }
-
-                        universalPackJson.put("ver", 1)
-                        universalPackJson.put("type", TOPICS_DATA)
-                        universalPackJson.put("data", topicsData.toString())
-
-                        val universalPackJsonResult = universalPackJson.toString()
-
-                        //сжимаем
-                        val bo = ByteArrayOutputStream()
-                        val os = ZipOutputStream(BufferedOutputStream(bo))
-                        try {
-                            os.putNextEntry(ZipEntry("data"))
-                            val buff = Utilities.stringToBytesUTFCustom(universalPackJsonResult)
-                            os.flush()
-                            os.write(buff)
-                            os.close()
-                            //os.closeEntry();
-                        } catch (e: IOException) {
-                            e.printStackTrace()
-                        }
-
-                        publishMQTTMessage(SERVER_DATAPACK_NAME, Buffer(bo.toByteArray()), true)
-
-                        Log.d("servermode", "universal data source len:" + universalPackJsonResult.length + " zipped len:" + bo.toByteArray().size)
-
-
-                    } catch (e: JSONException) {
-                        e.printStackTrace()
-                    }
-
-                }
-
-                try {
-                    Thread.sleep((60 * 1000).toLong())
-
-                } catch (e: InterruptedException) {
-                    e.printStackTrace()
-                }
-
-            }
-        }).start()
-
-
-        Thread(Runnable {
-            //живые данные
-
-            try {
-                Thread.sleep(1000)
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
-            }
-
-            val appSettings = AppSettings.instance
-
-
-            while (true) {
-
-                if ((clientCountsInForeground > 0 || appSettings.server_mode) && db != null && dashboards != null && historyCollector!=null) {
-
-                    topicsForLive = topicsForLiveCollect
-
-                    val strEnum = Collections.enumeration(topicsForLive!!.keys)
-                    while (strEnum.hasMoreElements()) {
-                        val topicForHistoryData = strEnum.nextElement()//widgetData.getSubTopic(0).substring(0, widgetData.getSubTopic(0).length() - 4);
-                        val historyData = prepareHistoryGraphicData(topicForHistoryData, intArrayOf(Graph.LIVE))
-                        processReceiveSimplyTopicPayloadData(topicForHistoryData + Graph.LIVE_TOPIC_SUFFIX, historyData)
-                    }
-                }
-
-                try {
-                    Thread.sleep(1000)
-                } catch (e: InterruptedException) {
-                    e.printStackTrace()
-                }
-
-            }
-        }).start()
-
-        //$timer_1m
-        Thread(Runnable {
-            try {
-                Thread.sleep(1000)
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
-            }
-            while (true) {
-                val appSettings = AppSettings.instance;
-                if (appSettings.server_mode) {
-                    val cal = Calendar.getInstance();
-                    val dateFormat = SimpleDateFormat("HH:mm")
-                    processReceiveSimplyTopicPayloadData("%onTimer1m()", dateFormat.format(cal.getTime()));
-                }
-                try {
-                    Thread.sleep(60000)
-                } catch (e: InterruptedException) {
-                    e.printStackTrace()
-                }
-            }
-        }).start()
-
-
-        //$timer_1s
-        Thread(Runnable {
-            try {
-                Thread.sleep(1000)
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
-            }
-            while (true) {
-                val appSettings = AppSettings.instance;
-                if (appSettings.server_mode) {
-                    val cal = Calendar.getInstance();
-                    val dateFormat = SimpleDateFormat("HH:mm:ss")
-                    processReceiveSimplyTopicPayloadData("%onTimer1s()", dateFormat.format(cal.getTime()));
-                }
-                try {
-                    Thread.sleep(1000)
-                } catch (e: InterruptedException) {
-                    e.printStackTrace()
-                }
-            }
-        }).start()
-
+    @Throws(IOException::class)
+    private fun copyFile(input: InputStream, out: OutputStream) {
+        val buffer = ByteArray(1024)
+        var read: Int
+        while (true){
+        read = input.read(buffer)
+            if(read== -1)break
+            out.write(buffer, 0, read)
+        }
     }
 
 
@@ -606,7 +347,7 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
 
             //данные за период
             var selectQuery = "SELECT  MAX(timestamp/?), COUNT(timestamp), ROUND(AVG(value),2) FROM HISTORY WHERE detail_level=0 AND topic_id=? AND timestamp>=? GROUP BY timestamp/? ORDER BY timestamp DESC"
-            var cursor = db!!.rawQuery(selectQuery, arrayOf(aggregationPeriod.toString(), topicId.toString(), timeLine.toString(), aggregationPeriod.toString()))
+            var cursor = MQTTService.db!!.rawQuery(selectQuery, arrayOf(aggregationPeriod.toString(), topicId.toString(), timeLine.toString(), aggregationPeriod.toString()))
             if (cursor.moveToFirst()) {
                 var i = 1
                 do {
@@ -623,7 +364,7 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
 
             //актуальное значение
             selectQuery = "SELECT ROUND(value,2) FROM HISTORY WHERE detail_level=0 AND topic_id=? ORDER BY timestamp DESC LIMIT 1"
-            cursor = db!!.rawQuery(selectQuery, arrayOf(topicId.toString()))
+            cursor = MQTTService.db!!.rawQuery(selectQuery, arrayOf(topicId.toString()))
             var actualValue: Float? = null
             if (cursor.moveToFirst()) {
                 actualValue = cursor.getFloat(0)
@@ -678,34 +419,116 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
 
     }
 
-    fun connectionSettingsChanged() {
-        connectionInUnActualMode = true
+    class HistoryDataCollectorTask(mqtt:MQTTService) : TimerTask() {
+
+        private var mMqtt : MQTTService;
+
+        init {
+            mMqtt=mqtt;
+        }
+
+
+        override fun run() {
+
+            val appSettings = AppSettings.instance
+            if(appSettings==null)return;
+
+            if (appSettings.server_mode && MQTTService.db != null && mMqtt.dashboards != null) {
+
+                mMqtt.topicsForHistory = mMqtt.topicsForHistoryCollect
+
+                //аггрегация данных для графиков
+                val universalPackJson = JSONObject()
+                val topicsData = JSONArray()
+                try {
+                    val strEnum = Collections.enumeration(mMqtt.topicsForHistory!!.keys)
+                    while (strEnum.hasMoreElements()) {
+                        val topicForHistoryData = strEnum.nextElement()//widgetData.getSubTopic(0).substring(0, widgetData.getSubTopic(0).length() - 4);
+                        val historyData = mMqtt.prepareHistoryGraphicData(topicForHistoryData, intArrayOf(Graph.PERIOD_TYPE_1_HOUR, Graph.PERIOD_TYPE_4_HOUR, Graph.PERIOD_TYPE_1_DAY, Graph.PERIOD_TYPE_1_WEEK, Graph.PERIOD_TYPE_1_MOUNT))
+                        val oneTopicData = JSONObject()
+                        oneTopicData.put("topic", topicForHistoryData + Graph.HISTORY_TOPIC_SUFFIX)
+                        oneTopicData.put("payload", historyData)
+                        topicsData.put(oneTopicData)
+                        Log.d("servermode", "source len:" + historyData.length)
+                    }
+
+                    universalPackJson.put("ver", 1)
+                    universalPackJson.put("type", MQTTService.TOPICS_DATA)
+                    universalPackJson.put("data", topicsData.toString())
+
+                    val universalPackJsonResult = universalPackJson.toString()
+
+                    //сжимаем
+                    val bo = ByteArrayOutputStream()
+                    val os = ZipOutputStream(BufferedOutputStream(bo))
+                    try {
+                        os.putNextEntry(ZipEntry("data"))
+                        val buff = Utilities.stringToBytesUTFCustom(universalPackJsonResult)
+                        os.flush()
+                        os.write(buff)
+                        os.close()
+                        //os.closeEntry();
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                    }
+
+                    val message=MqttMessage(bo.toByteArray())
+                    message.isRetained=true
+                    mMqtt.publishMQTTMessage(mMqtt.SERVER_DATAPACK_NAME, message)
+
+                    Log.d("servermode", "universal data source len:" + universalPackJsonResult.length + " zipped len:" + bo.toByteArray().size)
+
+
+                } catch (e: JSONException) {
+                    e.printStackTrace()
+                }
+
+            }
+
+
+
+        }
+
     }
 
+    fun connectionSettingsChanged() {
+
+        mqttAndroidClient!!.disconnect()
+
+/*
+        while(mqttAndroidClient!!.isConnected){
+            try {
+                Thread.sleep(100)
+            } catch (e: InterruptedException) {
+                e.printStackTrace()
+            }
+
+        }
+ */
+        mqttAndroidClient=null;
+
+
+        connectToMQTT()
+
+
+        //connectionInUnActualMode = true
+    }
+
+
+
     fun subscribeForInteractiveMode(appSettings: AppSettings) {
-        callbackMQTTClient.subscribe2("#")
-        callbackMQTTClient.subscribe2(appSettings.push_notifications_subscribe_topic)
-        /*
-        callbackMQTTClient.subscribeMass(allInteractiveTopics)
-        callbackMQTTClient.subscribe(appSettings.server_topic)
-        callbackMQTTClient.subscribe(appSettings.push_notifications_subscribe_topic)
-        */
+        mqttAndroidClient!!.subscribe("#", 0)
     }
 
     private fun subscribeForBackgroundMode(appSettings: AppSettings) {
-        callbackMQTTClient.unsubscribe2("#")
-        callbackMQTTClient.subscribe2(appSettings.push_notifications_subscribe_topic)
-        /*
-        callbackMQTTClient.unsubscribeMass(allInteractiveTopics)
-        callbackMQTTClient.unsubscribe(appSettings.server_topic)
-        callbackMQTTClient.subscribe(appSettings.push_notifications_subscribe_topic)
-        */
+        mqttAndroidClient!!.unsubscribe("#")
+        mqttAndroidClient!!.subscribe(appSettings.push_notifications_subscribe_topic, 0)
     }
 
 
     fun subscribeForState(newState: Int) {
         val appSettings = AppSettings.instance
-        appSettings.readFromPrefs(applicationContext)
+        appSettings.readPrefsFromDisk()
 
         when (newState) {
             STATE_FULL_CONNECTED ->
@@ -718,14 +541,142 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         }
     }
 
+    val subscriptionTopic="#"
+    fun subscribeToTopic() {
+        try {
+            mqttAndroidClient!!.subscribe(subscriptionTopic, 0, null, object : IMqttActionListener {
+                override fun onSuccess(asyncActionToken: IMqttToken) {
+                    ///addToHistory("Subscribed!")
+                    Log.d("paho", "Subscribed!")
+                }
+
+                override fun onFailure(asyncActionToken: IMqttToken, exception: Throwable) {
+                    ///addToHistory("Failed to subscribe")
+                    Log.d("paho", "Failed to subscribe")
+                }
+            })
+
+        } catch (ex: MqttException) {
+            System.err.println("Exception whilst subscribing")
+            ex.printStackTrace()
+        }
+
+    }
+
+
     override fun onCreate() {
         super.onCreate()
         Log.d(javaClass.name, "onCreate()")
+
+        connectToMQTT();
+
+        //end paho
+
     }
+
+
+    var needFullConnect=false
+
+    private fun connectToMQTT(){
+        Log.d(javaClass.name, "connectToMQTT()")
+
+        val appSettings = AppSettings.instance
+        appSettings.readPrefsFromDisk()
+
+
+        val ANDROID_ID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+        mqttAndroidClient=MqttAndroidClient(applicationContext, appSettings.server, "OneCore_$ANDROID_ID"+System.currentTimeMillis())
+
+        mqttAndroidClient!!.setCallback(object : MqttCallbackExtended {
+            override fun connectComplete(reconnect: Boolean, serverURI: String) {
+
+                Log.d("paho", "connectComplete")
+                //subscribeForState(STATE_FULL_CONNECTED)
+
+
+                if (reconnect) {
+                    ///addToHistory("Reconnected to : $serverURI")
+                    // Because Clean Session is true, we need to re-subscribe
+
+
+
+                    //subscribeToTopic()
+                    //subscribeForState(STATE_HALF_CONNECTED)
+                    //subscribeForState(STATE_FULL_CONNECTED)
+                } else {
+                    ///addToHistory("Connected to: $serverURI")
+                    //subscribeToTopic()
+                }
+
+                interactiveMode(needFullConnect)
+                //subscribeForState(STATE_HALF_CONNECTED)
+
+            }
+
+            override fun connectionLost(cause: Throwable?) {
+                Log.d("paho", "connection lost")
+                ///addToHistory("The Connection was lost.")
+            }
+
+            @Throws(Exception::class)
+            override fun messageArrived(topic: String, message: MqttMessage) {
+                //Log.d("paho", "messageArrived $topic $message")
+                ///addToHistory("Incoming message: " + String(message.payload))
+
+                var urbanTopic = topic.toString()
+                if (urbanTopic[urbanTopic.length - 1] == '$') {
+                    urbanTopic = urbanTopic.substring(0, urbanTopic.length - 1)
+                }
+                //Log.d(javaClass.name, "onPublish "+urbanTopic+" payload:"+message);
+                onReceiveMQTTMessage(urbanTopic, message)
+
+            }
+
+            override fun deliveryComplete(token: IMqttDeliveryToken) {
+
+            }
+        })
+
+
+        val mqttConnectOptions = MqttConnectOptions()
+        mqttConnectOptions.isAutomaticReconnect = true
+        mqttConnectOptions.isCleanSession = true
+
+
+        try {
+            mqttAndroidClient!!.connect(mqttConnectOptions, null, object : IMqttActionListener {
+                override fun onSuccess(asyncActionToken: IMqttToken) {
+                    val disconnectedBufferOptions = DisconnectedBufferOptions()
+                    disconnectedBufferOptions.isBufferEnabled = true
+                    disconnectedBufferOptions.bufferSize = 100
+                    disconnectedBufferOptions.isPersistBuffer = false
+                    disconnectedBufferOptions.isDeleteOldestMessages = false
+                    mqttAndroidClient!!.setBufferOpts(disconnectedBufferOptions)
+                    subscribeForState(STATE_HALF_CONNECTED)
+                }
+
+                override fun onFailure(asyncActionToken: IMqttToken, exception: Throwable) {
+                    Log.d("paho", "Failed to connect to server")
+                }
+            })
+
+
+        } catch (ex: MqttException) {
+            ex.printStackTrace()
+        }
+    }
+
 
     override fun onDestroy() {
         super.onDestroy()
         Log.d(javaClass.name, "onDestroy()")
+
+        val broadcastIntent = Intent("com.ravendmaster.onecore.RestartMQTTService")
+        sendBroadcast(broadcastIntent)
+
+
+        stoptimertask()
+
     }
 
     override fun onBind(intent: Intent): IBinder? {
@@ -736,62 +687,145 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         super.onStartCommand(intent, flags, startId)
         Log.d(javaClass.name, "onStartCommand()")
 
-        val action = if (intent == null) "autostart" else intent.action
-        Log.d(javaClass.name, "onStartCommand: " + action!!)
+        if(instance!=null)return Service.START_STICKY
 
-        when (action) {
-            "autostart" -> {
+        instance = this
+
+        AppSettings.instance.readPrefsFromDisk()
+        createDashboardsBySettings(true)
+
+        duktape = Duktape.create()
+        duktape!!.bind("MQTT", IMQTT::class.java, imqtt)
+        duktape!!.bind("Notifier", INotifier::class.java, notifier)
+        duktape!!.bind("JSONPath", IJSONPath::class.java, jsonPath)
+        duktape!!.bind("ValueData", IValue::class.java, valueData)
+
+        Log.d(javaClass.name, "duktape start")
+
+
+        lastReceivedMessagesByTopic = HashMap()
+
+        currentMQTTValues = HashMap()
+
+
+        var mTimer = Timer()
+        var mMyTimerTask = HistoryDataCollectorTask(this)
+        mTimer.schedule(mMyTimerTask, 100, 60000)
+
+
+        Thread(Runnable {
+            //живые данные
+            try {
+                Thread.sleep(1000)
+            } catch (e: InterruptedException) {
+                e.printStackTrace()
             }
-            "interactive" -> clientCountsInForeground++
-            "pause" -> clientCountsInForeground--
-        }//Log.d("test", "clientCountsInForeground++ ="+clientCountsInForeground);
-        //Log.d("test", "clientCountsInForeground-- ="+clientCountsInForeground);
+
+            val appSettings = AppSettings.instance
+
+
+            while (true) {
+
+                if (( appSettings.server_mode) && db != null && dashboards != null && historyCollector!=null) {
+
+                    topicsForLive = topicsForLiveCollect
+
+                    val strEnum = Collections.enumeration(topicsForLive!!.keys)
+                    while (strEnum.hasMoreElements()) {
+                        val topicForHistoryData = strEnum.nextElement()//widgetData.getSubTopic(0).substring(0, widgetData.getSubTopic(0).length() - 4);
+                        val historyData = prepareHistoryGraphicData(topicForHistoryData, intArrayOf(Graph.LIVE))
+                        processReceiveSimplyTopicPayloadData(topicForHistoryData + Graph.LIVE_TOPIC_SUFFIX, historyData)
+                    }
+                }
+
+                try {
+                    Thread.sleep(1000)
+                } catch (e: InterruptedException) {
+                    e.printStackTrace()
+                }
+
+            }
+        }).start()
+
+        //$timer_1m
+        Thread(Runnable {
+            try {
+                Thread.sleep(1000)
+            } catch (e: InterruptedException) {
+                e.printStackTrace()
+            }
+            while (true) {
+                val appSettings = AppSettings.instance;
+                if (appSettings.server_mode) {
+                    val cal = Calendar.getInstance();
+                    val dateFormat = SimpleDateFormat("HH:mm")
+                    processReceiveSimplyTopicPayloadData("onTimer1m()", dateFormat.format(cal.getTime()));
+                }
+                try {
+                    Thread.sleep(60000)
+                } catch (e: InterruptedException) {
+                    e.printStackTrace()
+                }
+            }
+        }).start()
+
+
+        //$timer_1s
+        Thread(Runnable {
+            try {
+                Thread.sleep(1000)
+            } catch (e: InterruptedException) {
+                e.printStackTrace()
+            }
+            while (true) {
+                val appSettings = AppSettings.instance;
+                if (appSettings.server_mode) {
+                    val cal = Calendar.getInstance();
+                    val dateFormat = SimpleDateFormat("HH:mm:ss")
+                    processReceiveSimplyTopicPayloadData("onTimer1s()", dateFormat.format(cal.getTime()));
+                }
+                try {
+                    Thread.sleep(1000)
+                } catch (e: InterruptedException) {
+                    e.printStackTrace()
+                }
+            }
+        }).start()
 
         val appSettings = AppSettings.instance
-        appSettings.readFromPrefs(applicationContext)
+        appSettings.readPrefsFromDisk()
 
-        //if (callbackMQTTClient == null) {
-        //    Log.d(javaClass.name, "new CallbackMQTTClient()")
-        //    callbackMQTTClient = CallbackMQTTClient(this)
-        //}
-
-        //callbackMQTTClient.reConnect(appSettings);
-
-        Log.d(javaClass.name, "clientCountsInForeground=" + clientCountsInForeground)
 
         push_topic = appSettings.push_notifications_subscribe_topic
 
-        //showNotifyStatus(appSettings.push_notifications_subscribe_topic, false);
-
-        showNotifyStatus("High energy consumption.", !appSettings.server_mode)
-
-
-        //val rootSubscribeTopic = ""//3.0 appSettings.subscribe_topic.endsWith("#") ? appSettings.subscribe_topic.substring(0, appSettings.subscribe_topic.length() - 1) : appSettings.subscribe_topic;
-
         SERVER_DATAPACK_NAME = appSettings.server_topic
 
-
         if (mDbHelper == null) {
-            mDbHelper = DbHelper(applicationContext)
+
+            val dbPath=Utilities.getAppDir().absolutePath+File.separator+"onecore.db"
+
+            mDbHelper = DbHelper(applicationContext, dbPath)
             db = mDbHelper!!.writableDatabase
             historyCollector = HistoryCollector(db)
         }
         if(historyCollector!=null) {
-            historyCollector!!.needCollectData = appSettings.server_mode || clientCountsInForeground > 0
+            historyCollector!!.needCollectData = appSettings.server_mode
         }
+
 
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         if (wl == null) {
             wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, javaClass.name)
         }
-        if (appSettings.server_mode) {
-            wl!!.acquire()
-        } else {
-            if (wl!!.isHeld) {
-                wl!!.release()
-            }
-            wl = null
-        }
+
+
+
+        createDashboardsBySettings()
+
+        activeTabIndex = appSettings.tabs!!.getDashboardIdByTabIndex(screenActiveTabIndex)
+
+
+        startTimer()
 
         return Service.START_STICKY
     }
@@ -802,11 +836,17 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         foreground_intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
         foreground_intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
+
+        var channelId =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    createNotificationChannel()
+                }else{ "" }
+
         val pendingIntent = PendingIntent.getActivity(this, 0, foreground_intent, 0)
-        val builder = Notification.Builder(this)
-                .setContentTitle("Application server mode is on")
-                //.setContentTitle("Linear MQTT Dashboard")
-                //.setContentText("Application server mode is on")
+        val builder = NotificationCompat.Builder(this, channelId)
+                //.setContentTitle("Online")
+                //.setContentTitle("OneCore")
+                .setContentText("Online")
                 .setSmallIcon(R.drawable.ic_playblack)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true).setSubText(text1)
@@ -827,9 +867,28 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
 
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, 0)
+        //val pendingIntent = PendingIntent.getActivity(this, 0, intent, 0)
 
 
+        var chanelId =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    createPushNotificationChannel()
+                }else{ "" }
+
+        val intent1 = Intent(applicationContext, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(getApplicationContext(), 123, intent1, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        var builder=NotificationCompat.Builder(applicationContext, chanelId)
+                .setContentTitle(message)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setBadgeIconType(R.drawable.ic_notification)
+                .setChannelId(chanelId)
+                .setNumber(1)
+                .setColor(Color.BLACK)
+                .setWhen(System.currentTimeMillis())
+/*
         val builder = Notification.Builder(this)
                 .setDefaults(Notification.DEFAULT_SOUND or Notification.DEFAULT_VIBRATE)
                 .setLights(Color.RED, 100, 100)
@@ -842,9 +901,8 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
                 .setContentIntent(pendingIntent)
                 //.setSubText(message)//"This is subtext...");   //API level 16
                 .setAutoCancel(true)
-
-        val manager: NotificationManager
-        manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+*/
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(getStringHash(topic), builder.build())// myNotication);
 
     }
@@ -857,17 +915,28 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         return hash
     }
 
-    fun publishMQTTMessage(topic: String, payload: Buffer, retained: Boolean) {
+    fun publishMQTTMessage(topic: String, message: MqttMessage) {
         if (topic == "") return
-        if (callbackMQTTClient == null) return
-        callbackMQTTClient!!.publish(topic, payload, retained)
+        try {
+            mqttAndroidClient!!.publish(topic, message)
+
+            //if (!mqttAndroidClient!!.isConnected()) {
+            //}
+        } catch (e: MqttException) {
+            System.err.println("Error Publishing: " + e.message)
+            e.printStackTrace()
+        }
+
+
     }
 
     fun setPayLoadChangeHandler(payLoadChanged: Handler) {
+        Log.d(javaClass.name, "setPayLoadChangeHandler()")
         mPayloadChanged = payLoadChanged
     }
 
     internal fun notifyDataInTopicChanged(topic: String?, payload: String?) {
+        Log.d(javaClass.name,"$this notifyDataInTopicChanged():"+topic+" - "+payload)
         if (mPayloadChanged != null) {
             if (payload != currentMQTTValues[topic]) {
                 val msg = Message()
@@ -877,12 +946,46 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         }
     }
 
-    override fun onReceiveMQTTMessage(topic: String, payload: Buffer) {
+    fun onReceiveMQTTMessage(topic: String, payload: MqttMessage) {
 
         //Log.d(javaClass.name, "onReceiveMQTTMessage() topic:" + topic+" payload:"+String(payload.toByteArray(), Charset.forName("UTF-8")))
 
-        if (topic == SERVER_DATAPACK_NAME) {
-            processUniversalPack(payload)
+        if( topic == publishConfigTopicRootPath){
+
+            val is_ = ByteArrayInputStream(payload.payload)
+            val inputStream = ZipInputStream(BufferedInputStream(is_!!))
+
+            //ZipEntry entry;
+            while (inputStream.nextEntry != null) {
+                val os = ByteArrayOutputStream()
+
+                val buff = ByteArray(1024)
+                while (true){
+                    val count = inputStream.read(buff, 0, 1024)
+                    if(count == -1)break
+                    os.write(buff, 0, count)
+                }
+                os.flush()
+                os.close()
+
+                val result = Utilities.bytesToStringUTFCustom(os.toByteArray(), os.toByteArray().size)
+
+
+                val settings = AppSettings.instance
+                settings.setSettingsFromString(result)
+
+                settings.saveTabsSettingsToPrefs()
+
+                createDashboardsBySettings(true)
+
+                MainActivity.getPresenter().saveAllDashboards()
+                MainActivity.getPresenter().onTabPressed(0)
+                MainActivity.getPresenter().view.refreshTabState()
+
+            }
+
+        }else if (topic == SERVER_DATAPACK_NAME) {
+            processUniversalPack(payload.payload)
         } else {
 
             if (currentSessionTopicList.indexOf(topic) == -1) {
@@ -892,7 +995,7 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
 
             var payloadAsString = ""
             try {
-                payloadAsString = String(payload.toByteArray(), Charset.forName("UTF-8"))
+                payloadAsString = payload.toString()
             } catch (e: UnsupportedEncodingException) {
                 e.printStackTrace()
             }
@@ -907,13 +1010,13 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         }
     }
 
-    internal fun processUniversalPack(payload: Buffer) {
+    private fun processUniversalPack(payload: ByteArray) {
 
         var payloadAsString: String? = null
         try {
             //payloadAsString = new String(payload.toByteArray(), "UTF-8");
             //разжимае
-            val is_ = ByteArrayInputStream(payload.toByteArray())
+            val is_ = ByteArrayInputStream(payload)
             val istream = ZipInputStream(BufferedInputStream(is_))
 
             //int version=is.read();
@@ -999,9 +1102,9 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
     }
 
     //OnReceive()
-    internal fun processOnReceiveEvent(topic: String?, payload: String?) {
+    private fun processOnReceiveEvent(topic: String?, payload: String?) {
         if(dashboards==null)return;
-        //if (!AppSettings.instance.server_mode) return
+        if (!AppSettings.instance.server_mode) return
 
         for (dashboard in dashboards!!) {
             for (widgetData in dashboard.widgetsList) {
@@ -1028,9 +1131,9 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
             val pushTopicTemplate = push_topic!!.replace("/#".toRegex(), "")
             val templateSize = pushTopicTemplate.length
             if (topic.length >= templateSize && topic.substring(0, templateSize) == pushTopicTemplate) {
-                val lastPush = lastReceivedMessagesByTopic[topic]
+                val lastPush = lastReceivedMessagesByTopic!![topic]
                 if (lastPush == null || lastPush != payload) {
-                    lastReceivedMessagesByTopic.put(topic, payload)
+                    lastReceivedMessagesByTopic!!.put(topic, payload)
 
                     if (topic.startsWith(serverPushNotificationTopicRootPath)) {
                         //расширенное сообщение с сервера приложения, нужно интерпретировать
@@ -1049,13 +1152,27 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
         }
     }
 
+    fun publishConfig(){
+
+        val os_ = ByteArrayOutputStream();
+        val os = ZipOutputStream(BufferedOutputStream(os_))
+
+        val allSettings = AppSettings.instance.settingsAsStringForExport
+        os.putNextEntry(ZipEntry("settings.json"))
+        os.flush()
+        os.write(Utilities.stringToBytesUTFCustom(allSettings))
+        os.close()
+
+        publishMQTTMessage(publishConfigTopicRootPath, MqttMessage(os_.toByteArray()))
+    }
+
     companion object {
 
         internal val STATE_DISCONNECTED = 0
         internal val STATE_HALF_CONNECTED = 1
         internal val STATE_FULL_CONNECTED = 2
 
-        internal var clientCountsInForeground = 0
+        //internal var clientCountsInForeground = 0
 
         var instance: MQTTService? = null
 
@@ -1079,7 +1196,67 @@ class MQTTService : Service(), CallbackMQTTClient.IMQTTMessageReceiver {
 
         internal var inRealForegroundMode = false
         internal var idleTime = 0
+
     }
 
 
+    var counter = 0
+    private var timer: Timer? = null
+    private var timerTask: TimerTask? = null
+    internal var oldTime: Long = 0
+    fun startTimer() {
+        //set a new Timer
+        timer = Timer()
+
+        //initialize the TimerTask's job
+        initializeTimerTask()
+
+        //schedule the timer, to wake up every 1 second
+        timer!!.schedule(timerTask, 1000, 1000) //
+        Log.d("in timer", "start")
+    }
+
+    fun initializeTimerTask() {
+        timerTask = object : TimerTask() {
+            override fun run() {
+                //Log.d("in timer", "in timer ++++  " + counter++)
+
+            }
+        }
+    }
+
+    fun stoptimertask() {
+        //stop the timer, if it's not already null
+        if (timer != null) {
+            timer!!.cancel()
+            timer = null
+            Log.d("in timer", "stop")
+        }
+    }
+
+    fun interactiveMode(isOn: Boolean) {
+        needFullConnect=isOn
+        Log.d("test", ""+needFullConnect)
+        if(!needFullConnect){
+            Log.d("test","WTF?")
+        }
+
+        Thread(Runnable {
+            for(i in 1..30) { // 2 sec
+                if(isConnected){
+                    if(isOn){
+                        subscribeForState(STATE_FULL_CONNECTED)
+                    }else{
+                        subscribeForState(STATE_HALF_CONNECTED)
+                    }
+                    break;
+                }
+                try {
+                    Thread.sleep(100)
+                } catch (e: InterruptedException) {
+                    e.printStackTrace()
+                }
+            }
+        }).start()
+    }
 }

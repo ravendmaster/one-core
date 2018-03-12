@@ -56,11 +56,13 @@
 !-->
         <activity android:name=".activity.WidgetEditorActivity" />
         <activity android:name=".activity.AppSettingsActivity" />
+        <activity android:name=".activity.TabsActivity" />
+        <activity android:name=".activity.OpenFileActivity" />
 
         <service
             android:name=".service.MQTTService"
             android:enabled="true"
-            android:exported="true" />
+            android:exported="true"/>
 
         <receiver android:name=".service.AutoStart">
             <intent-filter>
@@ -68,8 +70,25 @@
             </intent-filter>
         </receiver>
 
-        <activity android:name=".activity.TabsActivity" />
-        <activity android:name=".activity.OpenFileActivity" />
+        <receiver
+            android:name="com.ravendmaster.onecore.service.RestartMQTTService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="RestartServiceWhenStopped">
+            <intent-filter>
+                <action android:name="com.ravendmaster.onecore.RestartMQTTService"/>
+            </intent-filter>
+        </receiver>
+
+
+        <service
+            android:name="org.eclipse.paho.android.service.MqttService"
+            android:enabled="true"
+            android:exported="true" />
+
+
+
+
 
         <!--
                 <receiver

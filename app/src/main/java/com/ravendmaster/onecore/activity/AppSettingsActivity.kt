@@ -14,9 +14,12 @@ import com.ravendmaster.onecore.service.AppSettings
 import com.ravendmaster.onecore.R
 import android.widget.SeekBar
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.ravendmaster.onecore.service.Presenter
 
 
 class AppSettingsActivity : AppCompatActivity() {
+
+    //internal val presenter : Presenter? = null;
 
     private lateinit var mFirebaseAnalytics: FirebaseAnalytics
 
@@ -73,22 +76,19 @@ class AppSettingsActivity : AppCompatActivity() {
                 settings.connection_in_background = connection_in_background.isChecked
                 settings.server_mode = server_mode.isChecked
 
-                settings.saveConnectionSettingsToPrefs(this)
+                settings.saveConnectionSettingsToPrefs()
 
                 //MainActivity.presenter.restartService(this);
-                if (MainActivity.presenter != null) {
-                    MainActivity.presenter!!.connectionSettingsChanged()
-                }
+                //if (MainActivity.getPresenter() != null) {
+                //    MainActivity.getPresenter().connectionSettingsChanged()
+                //}
 
                 finish()
+                MainActivity.getPresenter().connectionSettingsChanged()
                 //MainActivity.connectToMQTTServer(getApplicationContext());
-                MainActivity.presenter!!.resetCurrentSessionTopicList()
+                //MainActivity.getPresenter().resetCurrentSessionTopicList()
 
-                MainActivity.presenter!!.subscribeToAllTopicsInDashboards(settings)
-
-
-
-
+                //!!MainActivity.getPresenter().subscribeToAllTopicsInDashboards(settings)
                 MainActivity.instance.restartMainActivity();
 
 
@@ -133,7 +133,7 @@ class AppSettingsActivity : AppCompatActivity() {
     }
 
     fun OnClickHelp(view: View) {
-        MainActivity.presenter!!.OnClickHelp(this, view)
+        MainActivity.getPresenter().OnClickHelp(this, view)
     }
 
 }

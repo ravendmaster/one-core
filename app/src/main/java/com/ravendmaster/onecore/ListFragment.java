@@ -77,12 +77,12 @@ public class ListFragment extends Fragment {
                 if (fromPosition != toPosition) {
                     //Toast.makeText(mDragListView.getContext(), "End - position: " + toPosition, Toast.LENGTH_SHORT).show();
 
-                    ArrayList arrayList = MainActivity.presenter.getWidgetsList();
+                    ArrayList arrayList = MainActivity.getPresenter().getWidgetsList();
 
                     WidgetData temp = (WidgetData) arrayList.get(fromPosition);
                     arrayList.remove(fromPosition);
                     arrayList.add(toPosition, temp);
-                    MainActivity.presenter.saveActiveDashboard(MainActivity.instance, MainActivity.presenter.getActiveDashboardId());
+                    MainActivity.getPresenter().saveActiveDashboardToDisk(MainActivity.getPresenter().getActiveDashboardId());
 
                 }
             }
@@ -98,7 +98,7 @@ public class ListFragment extends Fragment {
 
     public void loadDataToDataSet() {
         mItemArray.clear();
-        ArrayList<WidgetData> widgetDatas=MainActivity.presenter.getWidgetsList();
+        ArrayList<WidgetData> widgetDatas=MainActivity.getPresenter().getWidgetsList();
         if(widgetDatas!=null) {
             for (WidgetData widgetData : widgetDatas) {
                 mItemArray.add(new Pair<>(Long.valueOf(index), widgetData));

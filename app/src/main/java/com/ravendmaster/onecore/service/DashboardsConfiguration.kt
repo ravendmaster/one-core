@@ -8,19 +8,16 @@ import org.json.JSONObject
 
 class DashboardsConfiguration {
 
-    //internal var items = HashMap<Int, String>()
-    private var items = SparseArray<String>() //HashMap<Int, String>()
+    private var items = SparseArray<String>()
 
     val asJSON: JSONArray
         get() {
             val dashboards = JSONArray()
-            for (tabData in MainActivity.presenter!!.tabs!!.items) {
+            for (tabData in MainActivity.getPresenter()!!.tabs!!.items) {
                 val dashboard = JSONObject()
                 try {
                     dashboard.put("id", tabData.id.toString())
-                    val data = items[tabData.id] ?: continue
-                    val o2 = JSONArray(data)
-                    dashboard.put("dashboard", o2)
+                    dashboard.put("dashboard", JSONArray(items[tabData.id]))
                 } catch (e: JSONException) {
                     e.printStackTrace()
                 }
@@ -44,7 +41,7 @@ class DashboardsConfiguration {
         try {
             val jsonObj = JSONObject(RawJSON)
             val dashboards = jsonObj.getJSONArray("dashboards")
-            val dashboardsCount = jsonObj.getJSONArray("dashboards").length()
+            val dashboardsCount = dashboards.length()
             for (i in 0 until dashboardsCount) {
                 val id: Int?
                 var data = ""

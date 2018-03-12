@@ -1,5 +1,6 @@
 package com.ravendmaster.onecore
 
+import android.os.Environment
 import android.view.View
 import android.widget.SeekBar
 import android.widget.Switch
@@ -10,11 +11,22 @@ import com.ravendmaster.onecore.customview.Graph
 import com.ravendmaster.onecore.customview.Meter
 import com.ravendmaster.onecore.customview.MyButton
 import com.ravendmaster.onecore.customview.RGBLEDView
+import java.io.File
 
 import java.math.BigInteger
 import java.util.UUID
 
 object Utilities {
+
+    fun getAppDir():File{
+
+        val appDir="OneCore"
+        val dir = File(Environment.getExternalStorageDirectory().absolutePath+ File.separator + appDir);
+        if(!dir.exists()) {
+            dir.mkdir()
+        }
+        return dir
+    }
 
     /*
     @Throws(NumberFormatException::class)

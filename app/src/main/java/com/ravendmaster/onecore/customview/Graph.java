@@ -105,7 +105,7 @@ public class Graph extends View {
         primary_paint.setAntiAlias(true);
         secondary_paint.setAntiAlias(true);
 
-        secondary_paint.setColor(MyColors.INSTANCE.getAsBlack());
+        secondary_paint.setColor(MyColors.INSTANCE.getWhite());
         //secondary_paint.setStrokeWidth(3);
 
         setLayerToHW(this);
@@ -464,7 +464,7 @@ public class Graph extends View {
         }
 
         primary_paint.setTextSize(textSize);
-        primary_paint.setColor(MyColors.INSTANCE.getAsBlack());
+        primary_paint.setColor(MyColors.INSTANCE.getWhite());
 
         for (int i = 0; i < graph_x_grid_count; i++) {
             float x = graph_with - i * x_grid_step + graph_x_disp;
@@ -493,7 +493,7 @@ public class Graph extends View {
             }
         }
 
-        primary_paint.setColor(MyColors.INSTANCE.getAsBlack());
+        primary_paint.setColor(MyColors.INSTANCE.getLtGray());
         for (int i = 0; i < graph_y_grid_count; i++) {
             int y = i * y_grid_step + graph_y_disp;
             if (min != null && max != null) {
