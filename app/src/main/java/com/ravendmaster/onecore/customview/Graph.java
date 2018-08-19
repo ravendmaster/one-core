@@ -105,7 +105,7 @@ public class Graph extends View {
         primary_paint.setAntiAlias(true);
         secondary_paint.setAntiAlias(true);
 
-        secondary_paint.setColor(MyColors.INSTANCE.getWhite());
+        secondary_paint.setColor(MyColors.INSTANCE.getGray());
         //secondary_paint.setStrokeWidth(3);
 
         setLayerToHW(this);

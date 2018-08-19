@@ -179,6 +179,8 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
         MenuItem menuItemAutoCreateWidgets = optionsMenu.findItem(R.id.auto_create_widgets);
 
+        if(MainActivity.getPresenter()==null)return;
+
         if (MainActivity.getPresenter().isEditMode()) {
             menuItemPlayPause.setIcon(R.drawable.ic_play);
             menuItemAutoCreateWidgets.setVisible(MainActivity.getPresenter().getUnusedTopics().length > 0);
@@ -611,7 +613,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 
         final WidgetData widget = (WidgetData) view.getTag();
 
-        final String[] values = widget.getPublishValue().split(",");
+        final String[] values = widget.getPublishValue().split("\n");
 
         final CharSequence[] items = new CharSequence[values.length];
         int index = 0;
@@ -748,6 +750,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
             return;
         }
 
+
         mPresenter = new Presenter(this);
 
         MainActivity.getPresenter().onCreate();
@@ -875,12 +878,11 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
         Log.INSTANCE.d(getClass().getName(), "onResume()");
 
         //instance = this;
-        //presenter = new Presenter(this, this, this);
-        MainActivity.getPresenter().updateView(this);
+        Presenter presenter = MainActivity.getPresenter();
+        if(presenter==null)return;
 
-        MainActivity.getPresenter().onResume(this);
-
-
+        presenter.updateView(this);
+        presenter.onResume(this);
         refreshTabState();
     }
 
@@ -954,8 +956,8 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                             AppSettings settings = AppSettings.Companion.getInstance();
                             settings.setSettingsFromString(result);
 
-                            settings.saveTabsSettingsToPrefs();
-                            settings.saveConnectionSettingsToPrefs();
+                            settings.saveTabsSettingsToFile();
+                            settings.saveConnectionSettings();
 
                             MainActivity.getPresenter().createDashboardsBySettings(true);
 
@@ -1032,8 +1034,9 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
         Log.INSTANCE.d(getClass().getName(), "onDestroy()");
 
         //stopService(mMQTTServiceIntent);
-
-        MainActivity.getPresenter().onDestroy();
+        if(MainActivity.getPresenter()!=null) {
+            MainActivity.getPresenter().onDestroy();
+        }
 
         //saveDashboardViewMode();
 

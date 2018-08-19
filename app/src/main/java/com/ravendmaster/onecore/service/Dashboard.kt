@@ -10,8 +10,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.*
-
-import java.util.ArrayList
+import java.util.*
 
 class Dashboard(var id: Int) {
 
@@ -168,10 +167,7 @@ class Dashboard(var id: Int) {
                         "onShowExecute" -> widget.onShowExecute = jsonReader.nextString()
                         "onReceiveExecute" -> widget.onReceiveExecute = jsonReader.nextString()
                         "formatMode" -> widget.formatMode = jsonReader.nextString()
-                        "uid" -> {
-                            val uidString = jsonReader.nextString()
-                            widget.uid = Utilities.createUUIDByString(uidString)
-                        }
+                        "uid" -> widget.uid = UUID.fromString(jsonReader.nextString())
                     }
                 }
                 jsonReader.endObject()

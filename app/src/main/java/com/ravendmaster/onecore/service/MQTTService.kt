@@ -43,7 +43,7 @@ class MQTTService() : Service() {
 
     private var push_topic: String? = null
     private var currentDataVersion = 0
-    var mqttAndroidClient : MqttAndroidClient? = null
+    lateinit var mqttAndroidClient : MqttAndroidClient
     var dashboards: ArrayList<Dashboard>? = null
 
     //private var mqttBroker = org.eclipse.moquette.server.Server()
@@ -91,11 +91,13 @@ class MQTTService() : Service() {
 
     private var notifier: INotifier = object : INotifier {
         override fun push(message: String) {
-            publishMQTTMessage(getServerPushNotificationTopicForTextMessage(contextWidgetData!!.uid.toString()), textMessage(message, true))
+            val topic=getServerPushNotificationTopicForTextMessage(contextWidgetData!!.uid.toString())
+            publishMQTTMessage(topic, textMessage(message, true))
         }
 
         override fun stop() {
-            publishMQTTMessage(getServerPushNotificationTopicForTextMessage(contextWidgetData!!.uid.toString()), textMessage("", true))
+            val topic=getServerPushNotificationTopicForTextMessage(contextWidgetData!!.uid.toString())
+            publishMQTTMessage(topic, textMessage("", true))
         }
     }
 
@@ -107,7 +109,7 @@ class MQTTService() : Service() {
     }
 
     private var valueData: IValue = object : IValue {
-        override fun get(): String {
+        override fun get(): String? {
             return tempValue
         }
     }
@@ -166,7 +168,7 @@ class MQTTService() : Service() {
     var historyCollector: HistoryCollector? = null
 
     val isConnected: Boolean
-        get() = mqttAndroidClient!!.isConnected
+        get() = mqttAndroidClient.isConnected
 
     private var mPayloadChanged: Handler? = null
 
@@ -191,7 +193,7 @@ class MQTTService() : Service() {
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel(): String{
         val channelId = "my_service"
-        val channelName = "My Background Service"
+        val channelName = getString(R.string.ChannelNameBackgroundService)
         val chan = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_NONE)
         chan.lightColor = Color.BLUE
         chan.lockscreenVisibility = Notification.VISIBILITY_PRIVATE
@@ -213,17 +215,18 @@ class MQTTService() : Service() {
         return channelId
     }
 
-    var tempValue:String=""
+    var tempValue:String? = null
 
     fun evalJS(contextWidgetData: WidgetData, value: String?, code: String): String? {
         this.contextWidgetData = contextWidgetData
         var result = value
         try {
-            result = duktape!!.evaluate("var value==ValueData.get(); $code; String(value);")
+            tempValue = value;
+            result = duktape!!.evaluate("var value=ValueData.get();$code;String(value);")
             processReceiveSimplyTopicPayloadData("%onJSErrors", "no errors");
         } catch (e: Exception) {
             Log.d("script", "exec: " + e)
-            processReceiveSimplyTopicPayloadData("%onJSErrors", e.toString() );
+            processReceiveSimplyTopicPayloadData("%onJSErrors", contextWidgetData.getName(0)+": "+e.toString() );
         }
 
         return result
@@ -248,7 +251,7 @@ class MQTTService() : Service() {
     }
 
     internal interface IValue {
-        fun get(): String
+        fun get(): String?
     }
 
     fun getServerPushNotificationTopicForTextMessage(id: String): String { //для текстовых сообщений
@@ -421,11 +424,7 @@ class MQTTService() : Service() {
 
     class HistoryDataCollectorTask(mqtt:MQTTService) : TimerTask() {
 
-        private var mMqtt : MQTTService;
-
-        init {
-            mMqtt=mqtt;
-        }
+        private var mMqtt = mqtt;
 
 
         override fun run() {
@@ -492,29 +491,9 @@ class MQTTService() : Service() {
     }
 
     fun connectionSettingsChanged() {
-
         mqttAndroidClient!!.disconnect()
-
-/*
-        while(mqttAndroidClient!!.isConnected){
-            try {
-                Thread.sleep(100)
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
-            }
-
-        }
- */
-        mqttAndroidClient=null;
-
-
         connectToMQTT()
-
-
-        //connectionInUnActualMode = true
     }
-
-
 
     fun subscribeForInteractiveMode(appSettings: AppSettings) {
         mqttAndroidClient!!.subscribe("#", 0)
@@ -589,51 +568,30 @@ class MQTTService() : Service() {
 
         mqttAndroidClient!!.setCallback(object : MqttCallbackExtended {
             override fun connectComplete(reconnect: Boolean, serverURI: String) {
-
                 Log.d("paho", "connectComplete")
-                //subscribeForState(STATE_FULL_CONNECTED)
-
-
                 if (reconnect) {
                     ///addToHistory("Reconnected to : $serverURI")
                     // Because Clean Session is true, we need to re-subscribe
-
-
-
                     //subscribeToTopic()
-                    //subscribeForState(STATE_HALF_CONNECTED)
-                    //subscribeForState(STATE_FULL_CONNECTED)
                 } else {
-                    ///addToHistory("Connected to: $serverURI")
-                    //subscribeToTopic()
+
                 }
-
                 interactiveMode(needFullConnect)
-                //subscribeForState(STATE_HALF_CONNECTED)
-
             }
 
             override fun connectionLost(cause: Throwable?) {
                 Log.d("paho", "connection lost")
-                ///addToHistory("The Connection was lost.")
             }
 
             @Throws(Exception::class)
             override fun messageArrived(topic: String, message: MqttMessage) {
-                //Log.d("paho", "messageArrived $topic $message")
-                ///addToHistory("Incoming message: " + String(message.payload))
-
                 var urbanTopic = topic.toString()
                 if (urbanTopic[urbanTopic.length - 1] == '$') {
                     urbanTopic = urbanTopic.substring(0, urbanTopic.length - 1)
                 }
-                //Log.d(javaClass.name, "onPublish "+urbanTopic+" payload:"+message);
                 onReceiveMQTTMessage(urbanTopic, message)
-
             }
-
             override fun deliveryComplete(token: IMqttDeliveryToken) {
-
             }
         })
 
@@ -641,7 +599,6 @@ class MQTTService() : Service() {
         val mqttConnectOptions = MqttConnectOptions()
         mqttConnectOptions.isAutomaticReconnect = true
         mqttConnectOptions.isCleanSession = true
-
 
         try {
             mqttAndroidClient!!.connect(mqttConnectOptions, null, object : IMqttActionListener {
@@ -710,7 +667,7 @@ class MQTTService() : Service() {
 
         var mTimer = Timer()
         var mMyTimerTask = HistoryDataCollectorTask(this)
-        mTimer.schedule(mMyTimerTask, 100, 60000)
+        mTimer.schedule(mMyTimerTask, 0, 60000)
 
 
         Thread(Runnable {
@@ -724,7 +681,7 @@ class MQTTService() : Service() {
             val appSettings = AppSettings.instance
 
 
-            while (true) {
+            while (false) {
 
                 if (( appSettings.server_mode) && db != null && dashboards != null && historyCollector!=null) {
 
@@ -754,11 +711,11 @@ class MQTTService() : Service() {
             } catch (e: InterruptedException) {
                 e.printStackTrace()
             }
+            val appSettings = AppSettings.instance;
+            val cal = Calendar.getInstance();
+            val dateFormat = SimpleDateFormat("HH:mm")
             while (true) {
-                val appSettings = AppSettings.instance;
                 if (appSettings.server_mode) {
-                    val cal = Calendar.getInstance();
-                    val dateFormat = SimpleDateFormat("HH:mm")
                     processReceiveSimplyTopicPayloadData("onTimer1m()", dateFormat.format(cal.getTime()));
                 }
                 try {
@@ -777,8 +734,9 @@ class MQTTService() : Service() {
             } catch (e: InterruptedException) {
                 e.printStackTrace()
             }
+            val appSettings = AppSettings.instance;
             while (true) {
-                val appSettings = AppSettings.instance;
+
                 if (appSettings.server_mode) {
                     val cal = Calendar.getInstance();
                     val dateFormat = SimpleDateFormat("HH:mm:ss")
@@ -801,12 +759,11 @@ class MQTTService() : Service() {
         SERVER_DATAPACK_NAME = appSettings.server_topic
 
         if (mDbHelper == null) {
-
             val dbPath=Utilities.getAppDir().absolutePath+File.separator+"onecore.db"
-
             mDbHelper = DbHelper(applicationContext, dbPath)
             db = mDbHelper!!.writableDatabase
             historyCollector = HistoryCollector(db)
+
         }
         if(historyCollector!=null) {
             historyCollector!!.needCollectData = appSettings.server_mode
@@ -827,10 +784,12 @@ class MQTTService() : Service() {
 
         startTimer()
 
+        showNotifyStatus("Online", false)
+
         return Service.START_STICKY
     }
 
-    internal fun showNotifyStatus(text1: String, cancel: Boolean?) {
+    internal fun showNotifyStatus(text1: String, cancel: Boolean) {
         val foreground_intent = Intent(this, MainActivity::class.java)
 
         foreground_intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -846,13 +805,14 @@ class MQTTService() : Service() {
         val builder = NotificationCompat.Builder(this, channelId)
                 //.setContentTitle("Online")
                 //.setContentTitle("OneCore")
-                .setContentText("Online")
+                //.setContentText("Online")
                 .setSmallIcon(R.drawable.ic_playblack)
                 .setContentIntent(pendingIntent)
-                .setOngoing(true).setSubText(text1)
-                .setAutoCancel(true)
+                //.setOngoing(true)
+                .setSubText(text1)
+                //.setAutoCancel(true)
 
-        if (cancel!!) {
+        if (cancel) {
             stopForeground(true)
         } else {
             startForeground(1, builder.build())
@@ -888,6 +848,7 @@ class MQTTService() : Service() {
                 .setNumber(1)
                 .setColor(Color.BLACK)
                 .setWhen(System.currentTimeMillis())
+                .setAutoCancel(true)
 /*
         val builder = Notification.Builder(this)
                 .setDefaults(Notification.DEFAULT_SOUND or Notification.DEFAULT_VIBRATE)
@@ -916,18 +877,8 @@ class MQTTService() : Service() {
     }
 
     fun publishMQTTMessage(topic: String, message: MqttMessage) {
-        if (topic == "") return
-        try {
-            mqttAndroidClient!!.publish(topic, message)
-
-            //if (!mqttAndroidClient!!.isConnected()) {
-            //}
-        } catch (e: MqttException) {
-            System.err.println("Error Publishing: " + e.message)
-            e.printStackTrace()
-        }
-
-
+        if (topic.isEmpty() || !mqttAndroidClient!!.isConnected()) return
+        mqttAndroidClient!!.publish(topic, message)
     }
 
     fun setPayLoadChangeHandler(payLoadChanged: Handler) {
@@ -936,7 +887,7 @@ class MQTTService() : Service() {
     }
 
     internal fun notifyDataInTopicChanged(topic: String?, payload: String?) {
-        Log.d(javaClass.name,"$this notifyDataInTopicChanged():"+topic+" - "+payload)
+        //Log.d(javaClass.name,"$this notifyDataInTopicChanged(): $topic - $payload")
         if (mPayloadChanged != null) {
             if (payload != currentMQTTValues[topic]) {
                 val msg = Message()
@@ -974,7 +925,7 @@ class MQTTService() : Service() {
                 val settings = AppSettings.instance
                 settings.setSettingsFromString(result)
 
-                settings.saveTabsSettingsToPrefs()
+                settings.saveTabsSettingsToFile()
 
                 createDashboardsBySettings(true)
 
@@ -1244,7 +1195,7 @@ class MQTTService() : Service() {
         Thread(Runnable {
             for(i in 1..30) { // 2 sec
                 if(isConnected){
-                    if(isOn){
+                    if(isOn || AppSettings.instance.server_mode){
                         subscribeForState(STATE_FULL_CONNECTED)
                     }else{
                         subscribeForState(STATE_HALF_CONNECTED)

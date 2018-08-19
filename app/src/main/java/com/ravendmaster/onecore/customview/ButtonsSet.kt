@@ -159,8 +159,6 @@ class ButtonsSet
     fun setPublishValues(publishValues: String?) {
         this.publishValues = publishValues
         if (publishValues == null) return
-
-        //StringBuffer s = new StringBuffer("asd zxc 123 sdf");
         values = publishValues.split("\n".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         invalidate()
         requestLayout()
@@ -194,36 +192,21 @@ class ButtonsSet
 
     }
 
-
-
     init {
-
-
-
         setSize(Size)
-
-
-        val a = context.theme.obtainStyledAttributes(
+       val a = context.theme.obtainStyledAttributes(
                 attrs,
                 R.styleable.RGBLEDView,
                 0, 0)
-
         try {
             mOn = a.getBoolean(R.styleable.RGBLEDView_isOn, false)
             colorLight = a.getInteger(R.styleable.RGBLEDView_colorLight, Color.BLUE)
-            //labelOff = a.getString(R.styleable.RGBLEDView_labelOff);
-            //labelOn = a.getString(R.styleable.RGBLEDView_labelOn);
-        } finally {
+         } finally {
             a.recycle()
         }
-        //if (labelOff == null) labelOff = "";
-        //if (labelOn == null) labelOn = "button";
-
         p.isAntiAlias = true
 
         maxButtonsPerRow = 4
-        //requestLayout();
-
         if (isInEditMode) {
             setPublishValues("1,2,3,4,5,6")
         }
@@ -258,11 +241,7 @@ class ButtonsSet
                 invalidate()
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
-
                 Log.d(javaClass.name, "UP, " + event.action)
-                //mPressed = false;
-                //if (mButtonsSetEventListener != null) mButtonsSetEventListener.OnMyButtonUp(this);
-
                 val new_button_index = getButtonIndexByXY(X, Y)
                 if (new_button_index != null) {
                     //if(retained) {
@@ -280,16 +259,7 @@ class ButtonsSet
 
                 invalidate()
             }
-        }/*
-                Integer button_index = getButtonIndexByXY(X, Y);
-                if(button_index!=null) {
-                    pressed_button_index=button_index;
-                    mPressed = true;
-                    //if (mButtonsSetEventListener != null) mButtonsSetEventListener.OnButtonsSetPressed(this, button_index);
-                    invalidate();
-                    //playSoundEffect(SoundEffectConstants.CLICK);
-                }
-*///requestLayout();
+        }
 
         return true
     }
@@ -312,16 +282,10 @@ class ButtonsSet
 
     override fun onDraw(canvas: Canvas) {
 
-
-        //Rect rect = canvas.getClipBounds();
         val buttonColor = colorLight
 
         val left = left
         val right = right
-
-        val top = top
-        val bottom = bottom
-
 
         val totalWidth = right - left
         val buttonWidth = totalWidth / colCount
@@ -331,8 +295,6 @@ class ButtonsSet
         for (row in 0 until rowCount) {
             val y = button_height * row
             for (col in 0 until colCount) {
-
-                //if (button_count == getValueCount()) break;
 
                 val x = col * buttonWidth
 
@@ -347,7 +309,6 @@ class ButtonsSet
     }
 
     private fun DrawButton(canvas: Canvas, buttonColor: Int, left: Int, top: Int, right: Int, bottom: Int, current_button_index: Int) {
-
 
         val strokeWidth = 4
 
@@ -372,12 +333,10 @@ class ButtonsSet
         if (isEnabled) {
             if (pressed_button_index != null && pressed_button_index == current_button_index) {
                 alpha = 196
-                //button_label = labelOff.isEmpty() ? labelOn : labelOff;
-                button_label = label
+                 button_label = label
                 displace = displace_bound
             } else {
                 alpha = 128
-                //button_label = labelOn;
                 button_label = label
                 displace = 0
             }
@@ -396,7 +355,6 @@ class ButtonsSet
 
         //углубление/тень
         canvas.drawRect((strokeWidth + left).toFloat(), (button_displace_y + displace + top).toFloat(), (button_width - displace_bound + left).toFloat(), (button_height + button_displace_y - displace_bound + displace + top).toFloat(), p)
-
 
         p.style = Paint.Style.STROKE
         p.strokeWidth = strokeWidth.toFloat()
@@ -423,9 +381,6 @@ class ButtonsSet
             text += "..."
         }
         p.getTextBounds(text, 0, text.length, bounds)
-
-
-
 
         canvas.drawText(text, (button_width / 2 - (bounds.right - bounds.left) / 2 + left).toFloat(), (displace / 2 + button_height / 2 + (bounds.bottom - bounds.top) / 2 + top).toFloat(), p)
     }

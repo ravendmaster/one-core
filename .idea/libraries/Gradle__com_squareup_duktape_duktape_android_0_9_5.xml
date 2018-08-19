@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: com.squareup.duktape:duktape-android-0.9.5">
+    <CLASSES>
+      <root url="file://C:/Users/Public/.gradle/caches/transforms-1/files-1.1/duktape-android-0.9.5.aar/7f282e53f698c3b02f0e049e05731961/res" />
+      <root url="jar://C:/Users/Public/.gradle/caches/transforms-1/files-1.1/duktape-android-0.9.5.aar/7f282e53f698c3b02f0e049e05731961/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://C:/Users/Public/.gradle/caches/modules-2/files-2.1/com.squareup.duktape/duktape-android/0.9.5/e6263af2a5058c309b28048580699094d7883a7a/duktape-android-0.9.5-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

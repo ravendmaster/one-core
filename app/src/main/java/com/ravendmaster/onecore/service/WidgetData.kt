@@ -11,7 +11,6 @@ import java.util.UUID
 
 class WidgetData {
 
-
     var noUpdate = false
 
     val topicSuffix: String
@@ -28,18 +27,10 @@ class WidgetData {
         }
 
     var type: WidgetTypes
-    internal var names = arrayOfNulls<String>(4)
-
-    fun isSystem():Boolean{
-        if((names[0]!!.length<1) || (names[0]!!.get(0)!='%'))return false;
-
-        return true;
-    }
+    private var names = arrayOfNulls<String>(4)
 
     var subscribeTopic = ""
     var publishTopic = ""
-
-    //public String newValueTopic = "";
 
     var label = ""
     var label2 = ""
@@ -48,7 +39,6 @@ class WidgetData {
     internal var pubTopics = arrayOfNulls<String>(4)
 
     var uid = UUID.randomUUID()
-
 
     internal var primaryColors = arrayOfNulls<Int>(4)
 
@@ -112,16 +102,16 @@ class WidgetData {
 
             fun getWidgetTypeByInt(i: Int): WidgetData.WidgetTypes? {
                 when (i) {
-                    0 -> return WidgetData.WidgetTypes.VALUE
-                    1 -> return WidgetData.WidgetTypes.SWITCH
-                    2 -> return WidgetData.WidgetTypes.BUTTON
-                    3 -> return WidgetData.WidgetTypes.RGBLed
-                    4 -> return WidgetData.WidgetTypes.SLIDER
-                    5 -> return WidgetTypes.HEADER
-                    6 -> return WidgetTypes.METER
-                    7 -> return WidgetTypes.GRAPH
-                    8 -> return WidgetTypes.BUTTONSSET
-                    9 -> return WidgetTypes.COMBOBOX
+                    0 -> return VALUE
+                    1 -> return SWITCH
+                    2 -> return BUTTON
+                    3 -> return RGBLed
+                    4 -> return SLIDER
+                    5 -> return HEADER
+                    6 -> return METER
+                    7 -> return GRAPH
+                    8 -> return BUTTONSSET
+                    9 -> return COMBOBOX
                     else -> return null
                 }
             }
@@ -223,23 +213,14 @@ class WidgetData {
     }
 
     companion object {
-
-        val Value_modes = arrayOf("Any", "Numbers")
-
+        private val Value_modes = arrayOf("Any", "Numbers")
         fun getWidgetModes(type: WidgetTypes): Array<String>? {
-
             when (type) {
-
                 WidgetData.WidgetTypes.VALUE -> return Value_modes
-
                 WidgetData.WidgetTypes.METER -> return Meter.modes
-
                 WidgetData.WidgetTypes.GRAPH -> return Graph.period_names
-
                 else -> return null
             }
-
         }
     }
-
 }

@@ -19,8 +19,6 @@ import com.ravendmaster.onecore.service.Presenter
 
 class TabsActivity : AppCompatActivity() {
 
-    internal var presenter: Presenter?=null
-
     internal lateinit var mTabsListFragment: TabListFragment
 
     internal var currentTabData: TabData? = null
@@ -101,7 +99,7 @@ class TabsActivity : AppCompatActivity() {
                 ) { dialog, id ->
                     val newName = userInput.text.toString()
                     if (currentTabData == null) {
-                        presenter!!.addNewTab(newName)
+                        MainActivity.getPresenter().addNewTab(newName)
                     } else {
                         currentTabData!!.name = newName
                     }
@@ -129,9 +127,9 @@ class TabsActivity : AppCompatActivity() {
 
     }
 
-    override fun onPause() {
-        super.onPause()
-        presenter!!.saveTabsList()
+    override fun onDestroy() {
+        MainActivity.getPresenter().saveTabsList()
+        super.onDestroy()
     }
 
     companion object {

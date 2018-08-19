@@ -107,9 +107,7 @@ class Presenter(internal var view: IView) {
     val isMQTTBrokerOnline: Boolean
         get() = MQTTService.instance!!.isConnected
 
-    internal var mActiveMode: Boolean = false
-
-    internal var mTimerRefreshMQTTConnectionStatus: Timer? = null
+    private var mTimerRefreshMQTTConnectionStatus: Timer? = null
 
     var isEditMode: Boolean
         get() = editMode
@@ -168,25 +166,9 @@ class Presenter(internal var view: IView) {
 
     fun saveTabsList() {
         val appSettings = AppSettings.instance
-        if (appSettings.settingsVersion == 0) {
-            //переход на новую версию сохраненных настроек
-            //состав табов храниться в tabs в виде JSON миссива id,name
-            appSettings.settingsVersion = 1
-            appSettings.saveConnectionSettingsToPrefs()
-        }
-        appSettings.saveTabsSettingsToPrefs()
-
+        appSettings.saveTabsSettingsToFile()
         onTabPressed(-1)
 
-    }
-
-    fun resetCurrentSessionTopicList() {
-        MQTTService.instance!!.currentSessionTopicList.clear()
-        //mMQTTService.setCurrentSessionTopicList(new ArrayList<>());
-    }
-
-    fun subscribeToAllTopicsInDashboards(appSettings: AppSettings) {
-        MQTTService.instance!!.subscribeForInteractiveMode(appSettings)
     }
 
     fun widgetSettingsChanged(widget: WidgetData) {
@@ -280,7 +262,7 @@ class Presenter(internal var view: IView) {
 
             val handlerPayloadChanged = object : Handler() {
                 override fun handleMessage(msg: android.os.Message) {
-                    val topic = msg.obj as String
+                      val topic = msg.obj as String
                     startPayloadChangedNotification(topic)
                 }
             }
@@ -356,10 +338,10 @@ class Presenter(internal var view: IView) {
         return MQTTService.instance!!.getMQTTCurrentValue(topic)
     }
 
-    fun publishMQTTMessage(topic: String?, text: String, retained: Boolean) {
+    fun publishMQTTMessage(topic: String, text: String, retained: Boolean) {
         val message=MqttMessage(text.toByteArray())
         message.isRetained=retained
-        MQTTService.instance!!.publishMQTTMessage(topic!!, message)
+        MQTTService.instance!!.publishMQTTMessage(topic, message)
     }
 
     fun isOnline(context: Context): Boolean {
@@ -376,28 +358,16 @@ class Presenter(internal var view: IView) {
 
     fun onPause() {
         Log.d(javaClass.name, "onPause()")
-
-        //val service_intent = Intent(view.appCompatActivity, MQTTService::class.java)
-        //service_intent.action = "pause"
-        //view.appCompatActivity.startService(service_intent)
-
-        //mTimerRefreshMQTTConnectionStatus!!.cancel()
-        //mTimerRefreshMQTTConnectionStatus = null
-
-        mActiveMode = false
+        MQTTService.instance!!.interactiveMode(false)
     }
 
     fun onDestroy() {
-        //appCompatActivity.stopService(mMQTTServiceIntent)
-
         MQTTService.instance!!.interactiveMode(false)
     }
 
     fun onResume(appCompatActivity: AppCompatActivity) {
 
         MQTTService.instance!!.interactiveMode(true)
-
-        mActiveMode = true
 
         //val service_intent = Intent(appCompatActivity, MQTTService::class.java)
         //service_intent.action = "interactive"
@@ -412,7 +382,7 @@ class Presenter(internal var view: IView) {
             mTimerRefreshMQTTConnectionStatus!!.schedule(object : TimerTask() {
                 override fun run() {
                     if (MQTTService.instance == null) return
-                    if (!mActiveMode) return
+                    //if (!needFullConnect) return
                     mqttBrokerStatus = if (isMQTTBrokerOnline) CONNECTION_STATUS.CONNECTED else CONNECTION_STATUS.DISCONNECTED
                     connectionStatus = if (isOnline(appCompatActivity)) CONNECTION_STATUS.CONNECTED else CONNECTION_STATUS.DISCONNECTED
                     if (MQTTService.instance != null) {
@@ -470,9 +440,9 @@ class Presenter(internal var view: IView) {
     }
 
     internal inner class SendMessagePack {
-        var topic: String? = null
-        var value: String? = null
-        var retained: Boolean? = null
+        var topic: String=""
+        var value: String=""
+        var retained: Boolean=false
     }
 
     fun onProgressChanged(seekBar: SeekBar) {

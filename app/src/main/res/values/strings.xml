@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">OneCore</string>
-    <string name="server">Server (\'tcp://\', \'ssl://\' or \'tls://\' prefixes available)</string>
+    <string name="server">Server (\'tcp://mqttserver.com:1883)</string>
     <string name="port">Port</string>
     <string name="username">Username</string>
     <string name="password">Password</string>
@@ -78,5 +78,7 @@
     <string name="copy">Copy...</string>
     <string name="move_to_tab">Move to tab...</string>
     <string name="ChanelNamePushNotification">Push notification</string>
+    <string name="values_and_labels_example">value:[label] (one line = one button)</string>
+    <string name="ChannelNameBackgroundService">Background Service</string>
 
 </resources>

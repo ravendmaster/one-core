@@ -2,7 +2,7 @@ package com.ravendmaster.onecore.customview
 
 object ComboBoxSupport {
     fun getLabelByValue(valueString: String, valuesList: String): String {
-        val values = valuesList.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+        val values = valuesList.split("\n".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         for (value in values) {
             val valueData = value.split("\\|".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
             if (valueData.size > 0) {

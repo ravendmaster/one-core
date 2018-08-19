@@ -52,11 +52,6 @@ public class TopicsCollector {
             } while (c.moveToNext());
         }
         freeId++;
-
-
-
-
-
     }
     
     long freeId=0;
@@ -66,13 +61,10 @@ public class TopicsCollector {
         if(id==null){
             topics.put(topic, freeId);
             id=freeId++;
-            //Log.d("history", "topic:"+topic+" id="+id);
-
             ContentValues values = new ContentValues();
             values.put(HistoryContract.TopicEntry._ID, id);
             values.put(HistoryContract.TopicEntry.COLUMN_NAME_TOPIC, topic);
             db.insert(HistoryContract.TopicEntry.TABLE_NAME,null,values);
-
         };
         return id;
     }

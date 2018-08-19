@@ -28,19 +28,6 @@ object Utilities {
         return dir
     }
 
-    /*
-    @Throws(NumberFormatException::class)
-    fun isNumeric(s: String): Boolean {
-        try {
-            java.lang.Double.parseDouble(s)
-            return true
-        } catch (e: NumberFormatException) {
-            return false
-        }
-
-    }
-    */
-
     fun onBindDragTabView(clickedView: View, dragView: View) {
         (dragView.findViewById<View>(R.id.tab_name) as TextView).text = (clickedView.findViewById<View>(R.id.tab_name) as TextView).text
     }
@@ -135,69 +122,12 @@ object Utilities {
         return Math.round(input * 1000f) / 1000f
     }
 
-    /*
-https://stackoverflow.com/questions/88838/how-to-convert-strings-to-and-from-utf8-byte-arrays-in-java
-Convert from String to byte[]:
-
-String s = "some text here";
-byte[] b = s.getBytes("UTF-8");
-
-Convert from byte[] to String:
-
-byte[] b = {(byte) 99, (byte)97, (byte)116};
-String s = new String(b, "US-ASCII");
- */
-
     fun stringToBytesUTFCustom(str: String): ByteArray {
-        //return str.getBytes(StandardCharsets.UTF_8);
         return str.toByteArray()
     }
 
     fun bytesToStringUTFCustom(bytes: ByteArray, count: Int): String {
-        //return new String(bytes, StandardCharsets.UTF_8);
         return String(bytes)
     }
-
-    /* Old code:
-    public static byte[] stringToBytesUTFCustom(String str) {
-
-        char[] buffer = str.toCharArray();
-
-        byte[] b = new byte[buffer.length << 1];
-
-        for(int i = 0; i < buffer.length; i++) {
-
-            int bpos = i << 1;
-
-            b[bpos] = (byte) ((buffer[i]&0xFF00)>>8);
-
-            b[bpos + 1] = (byte) (buffer[i]&0x00FF);
-
-        }
-
-        return b;
-
-    }
-
-    public static String bytesToStringUTFCustom(byte[] bytes, int count) {
-
-        char[] buffer = new char[bytes.length >> 1];
-
-        for(int i = 0; i < count/2; i++) {
-
-            int bpos = i << 1;
-
-            char c = (char)(((bytes[bpos]&0x00FF)<<8) + (bytes[bpos+1]&0x00FF));
-
-            buffer[i] = c;
-
-        }
-
-        return new String(buffer);
-
-    }
-    */
-
-
 
 }

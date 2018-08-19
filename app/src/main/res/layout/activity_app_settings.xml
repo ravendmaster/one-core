@@ -39,20 +39,6 @@
                 android:inputType="textUri" />
 
             <TextView
-                android:id="@+id/textView_port"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/port"
-                android:textAppearance="?android:attr/textAppearanceSmall" />
-
-            <EditText
-                android:id="@+id/editText_port"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="number"
-                android:singleLine="true" />
-
-            <TextView
                 android:id="@+id/textView_username"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

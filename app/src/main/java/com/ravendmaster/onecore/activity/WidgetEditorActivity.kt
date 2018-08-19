@@ -351,14 +351,14 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
                         primaryColorVisible = View.VISIBLE
                         retainedVisible = View.VISIBLE
                         publishValueVisible = View.VISIBLE
-                        valueFieldName = "Values and labels (example: '0,127,255' or '0|OFF,127|50%,255|MAX')"
+                        valueFieldName = getString(R.string.values_and_labels_example)
                     }
                     WidgetData.WidgetTypes.BUTTONSSET -> {
                         additionalValueVisible = View.VISIBLE
                         primaryColorVisible = View.VISIBLE
                         retainedVisible = View.VISIBLE
                         publishValueVisible = View.VISIBLE
-                        valueFieldName = "Values and labels (example: '0,127,255' or '0|OFF,127|50%,255|MAX')"
+                        valueFieldName = getString(R.string.values_and_labels_example)
                         formatModeGroupVisible = View.VISIBLE
                     }
                     WidgetData.WidgetTypes.GRAPH -> {
@@ -468,7 +468,7 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
                 textView_publish_value.visibility = publishValueVisible!!
                 editText_publish_value.visibility = publishValueVisible
                 editText_publish_value.inputType = inputType
-                editText_publish_value.setSingleLine(widgetType !== WidgetData.WidgetTypes.BUTTONSSET)
+                editText_publish_value.setSingleLine( ! (widgetType == WidgetData.WidgetTypes.BUTTONSSET || widgetType == WidgetData.WidgetTypes.COMBOBOX))
 
 
                 textView_publish_value2.text = value2FieldName
@@ -477,8 +477,6 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
                 editText_publish_value2.inputType = inputType
 
                 labels_group.visibility = labelsGroupVisible!!
-
-                //new_value_topic_group.setVisibility(newValueTopicGroupVisible);
 
                 color_topic.visibility = primaryColorVisible!!
                 color_topic1.visibility = primaryColorVisible
@@ -499,7 +497,6 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
                 checkBox_displayAsDecimal.visibility = displayAsDecimalVisibleVisible!!
 
                 codes_group.visibility = codesGroupVisible!!
-
 
             }
 
@@ -563,14 +560,6 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
 
         editText_codeOnShow.setText(tempWidgetData.onShowExecute)
 
-        /*
-        SpannableStringBuilder sb = new SpannableStringBuilder(tempWidgetData.onReceiveExecute);
-        int color = MyColors.getBlue();
-        ForegroundColorSpan fcs  =new ForegroundColorSpan(color);
-        sb.setSpan(fcs, 0, 2,0);
-        editText_codeOnReceive.setText(sb);
-        */
-
         editText_codeOnReceive.setText(tempWidgetData.onReceiveExecute)
 
         editText_format_mode.setText(tempWidgetData.formatMode)
@@ -593,13 +582,11 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     override fun onPause() {
-        //primary_color_picker.stopAnimation();
-        super.onPause()
+       super.onPause()
     }
 
     override fun onResume() {
-        //primary_color_picker.startAnimation();
-        super.onResume()
+       super.onResume()
     }
 
     fun OnClickSelectTopicColor(view: View) {
@@ -612,8 +599,6 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
         current_topic_index_for_select_color = topic_index
         val li = LayoutInflater.from(this)
         val promptsView = li.inflate(R.layout.clolor_picker, null)
-        //TextView nameView = (TextView) promptsView.findViewById(R.id.textView_name);
-        //nameView.setText(widgetData.getName(0));
         myColorPicker = promptsView.findViewById<View>(R.id.color_picker) as MyColorPicker
         myColorPicker.setOnClickListener(this)
 
@@ -621,15 +606,8 @@ class WidgetEditorActivity : AppCompatActivity(), View.OnClickListener {
 
         val alertDialogBuilder = AlertDialog.Builder(this)
 
-        // set new_value_send_dialogue_send_dialog.xml to alertdialog builder
         alertDialogBuilder.setView(promptsView)
 
-     //   val userInput = promptsView.findViewById<View>(R.id.editTextDialogUserInput) as EditText
-        //userInput.setText(presenter.getMQTTCurrentValue(widgetData.getSubTopic(0)).replace("*", ""));
-        //userInput.setInputType(EditorInfo.TYPE_CLASS_NUMBER | EditorInfo.TYPE_NUMBER_FLAG_DECIMAL | EditorInfo.TYPE_NUMBER_FLAG_SIGNED);
-
-
-        // set dialog message
         alertDialogBuilder
                 .setCancelable(false)
                 .setNegativeButton("Cancel"

@@ -14,7 +14,6 @@ import com.ravendmaster.onecore.service.AppSettings
 import com.ravendmaster.onecore.R
 import android.widget.SeekBar
 import com.google.firebase.analytics.FirebaseAnalytics
-import com.ravendmaster.onecore.service.Presenter
 
 
 class AppSettingsActivity : AppCompatActivity() {
@@ -27,7 +26,7 @@ class AppSettingsActivity : AppCompatActivity() {
     internal lateinit var view_magnify : SeekBar//  = findViewById(R.id.seekBar1) as SeekBar
 
     internal lateinit var server: EditText
-    internal lateinit var port: EditText
+    //internal lateinit var port: EditText
     internal lateinit var username: EditText
     internal lateinit var password: EditText
     internal lateinit var server_topic: EditText
@@ -68,7 +67,7 @@ class AppSettingsActivity : AppCompatActivity() {
                 settings.view_magnify = view_magnify.progress
 
                 settings.server = server.text.toString()
-                settings.port = port.text.toString()
+                //settings.port = port.text.toString()
                 settings.username = username.text.toString()
                 settings.password = password.text.toString()
                 settings.server_topic = server_topic.text.toString()
@@ -76,7 +75,7 @@ class AppSettingsActivity : AppCompatActivity() {
                 settings.connection_in_background = connection_in_background.isChecked
                 settings.server_mode = server_mode.isChecked
 
-                settings.saveConnectionSettingsToPrefs()
+                settings.saveConnectionSettings()
 
                 //MainActivity.presenter.restartService(this);
                 //if (MainActivity.getPresenter() != null) {
@@ -105,7 +104,7 @@ class AppSettingsActivity : AppCompatActivity() {
         view_magnify = findViewById<View>(R.id.seekBarMagnify) as SeekBar
         view_compact_mode = findViewById<View>(R.id.checkBox_compact_mode) as CheckBox
         server = findViewById<View>(R.id.editText_server) as EditText
-        port = findViewById<View>(R.id.editText_port) as EditText
+        //port = findViewById<View>(R.id.editText_port) as EditText
         username = findViewById<View>(R.id.editText_username) as EditText
         password = findViewById<View>(R.id.editText_password) as EditText
         server_topic = findViewById<View>(R.id.editText_server_topic) as EditText
@@ -120,7 +119,7 @@ class AppSettingsActivity : AppCompatActivity() {
         view_magnify.progress = settings.view_magnify
 
         server.setText(settings.server)
-        port.setText(settings.port)
+        //port.setText(settings.port)
         username.setText(settings.username)
         password.setText(settings.password)
         server_topic.setText(settings.server_topic)

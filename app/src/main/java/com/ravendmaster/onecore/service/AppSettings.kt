@@ -31,9 +31,9 @@ class AppSettings private constructor()
 
     val tabNames: Array<String?>
         get() {
-            val result = arrayOfNulls<String>(tabs!!.items.size)
+            val result = arrayOfNulls<String>(tabs.items.size)
             var index = 0
-            for (tabData in tabs!!.items) {
+            for (tabData in tabs.items) {
                 result[index++] = tabData.name
             }
             return result
@@ -41,14 +41,13 @@ class AppSettings private constructor()
 
     private var settingsLoaded = false
 
+    // for save settings local
     private val appSettingsAsString: String
         get() {
-
             val resultJson = JSONObject()
-
             try {
                 resultJson.put("server", server)
-                resultJson.put("port", port)
+                //resultJson.put("port", port)
                 resultJson.put("username", username)
                 resultJson.put("server_topic", server_topic)
                 resultJson.put("push_notifications_subscribe_topic", push_notifications_subscribe_topic)
@@ -57,30 +56,31 @@ class AppSettings private constructor()
                 resultJson.put("settingsVersion", settingsVersion)
                 resultJson.put("view_compact_mode", view_compact_mode)
                 resultJson.put("view_magnify", view_magnify)
-
+                resultJson.put("server_mode", server_mode)
             } catch (e: JSONException) {
                 e.printStackTrace()
             }
             return resultJson.toString()
         }
 
-
+    // for publish settings
     val settingsAsStringForExport: String
         get() {
 
             val resultJson = JSONObject()
 
             try {
-                resultJson.put("server", server)
-                resultJson.put("port", port)
-                resultJson.put("username", username)
-                resultJson.put("server_topic", server_topic)
-                resultJson.put("push_notifications_subscribe_topic", push_notifications_subscribe_topic)
-                resultJson.put("keep_alive", keep_alive)
-                resultJson.put("connection_in_background", connection_in_background)
+                //resultJson.put("server", server)
+                //resultJson.put("port", port)
+                //resultJson.put("username", username)
+                //resultJson.put("server_topic", server_topic)
+                //resultJson.put("push_notifications_subscribe_topic", push_notifications_subscribe_topic)
+                //resultJson.put("keep_alive", keep_alive)
+                //resultJson.put("connection_in_background", connection_in_background)
                 resultJson.put("settingsVersion", settingsVersion)
+                //resultJson.put("server_mode", server_mode)
 
-                resultJson.put("tabs", tabs!!.asJSON)
+                resultJson.put("tabs", tabs.asJSON)
 
                 resultJson.put("dashboards", dashboardsConfiguration.asJSON)
 
@@ -93,15 +93,15 @@ class AppSettings private constructor()
         }
 
     fun getDashboardIDByTabIndex(tabIndex: Int): Int {
-        return tabs!!.getDashboardIdByTabIndex(tabIndex)
+        return tabs.getDashboardIdByTabIndex(tabIndex)
     }
 
     fun removeTabByDashboardID(id: Int) {
-        tabs!!.removeByDashboardID(id)
+        tabs.removeByDashboardID(id)
     }
 
     fun addTab(tabData: TabData) {
-        tabs!!.items.add(tabData)
+        tabs.items.add(tabData)
     }
 
     fun readPrefsFromDisk() {
@@ -116,9 +116,10 @@ class AppSettings private constructor()
             setSettingsFromString(app_settings_file.readText())
         }
 
+
         if (server == "") {
-            server = "ssl://m21.cloudmqtt.com"
-            port = "26796"
+            server = "ssl://m21.cloudmqtt.com:26796"
+            //port = "26796"
             username = "ejoxlycf"
             password = "odhSFqxSDACF"
             //3.0 subscribe_topic = "out/wcs/#";
@@ -127,11 +128,12 @@ class AppSettings private constructor()
             connection_in_background = false
         }
 
+
         tabs = TabsCollection()
         var file=File(Utilities.getAppDir().absolutePath+ File.separator+"tabs.json")
         if(file.exists()) {
             var fileData = FileReader(file.absoluteFile)
-            tabs!!.setFromJSON(JsonReader(fileData))
+            tabs.setFromJSON(JsonReader(fileData))
         }
 
         dashboardsConfiguration = DashboardsConfiguration()
@@ -144,61 +146,22 @@ class AppSettings private constructor()
 
     }
 
-    fun saveConnectionSettingsToPrefs() {
-        Log.d(javaClass.name, "saveConnectionSettingsToPrefs()")
+    fun saveConnectionSettings() {
+        Log.d(javaClass.name, "saveConnectionSettings()")
 
         FileWriter(Utilities.getAppDir().absolutePath+ File.separator+"app_settings.json").use({ file ->
             file.write(appSettingsAsString)
         })
-
-        /*
-        val sprefs = con.getSharedPreferences("mysettings", Context.MODE_PRIVATE)
-        val ed = sprefs.edit()
-        ed.putBoolean("view_compact_mode", view_compact_mode)
-        ed.putInt("view_magnify", view_magnify)
-
-        ed.putBoolean("adfree", adfree!!)
-        ed.putString("connection_server", server)
-        ed.putString("connection_port", port)
-        ed.putString("connection_username", username)
-        ed.putString("connection_password", password)
-        //3.0 ed.putString("connection_subscribe_topic", subscribe_topic);
-        ed.putString("connection_server_topic", server_topic)
-        ed.putString("connection_push_notifications_subscribe_topic", push_notifications_subscribe_topic)
-        ed.putString("keep_alive", keep_alive)
-        ed.putBoolean("connection_in_background", connection_in_background)
-        ed.putBoolean("server_mode", server_mode)
-
-        ed.putInt("settingsVersion", settingsVersion)
-
-        if (!ed.commit()) {
-            Log.d(javaClass.name, "commit failure!!!")
-        }
-        */
     }
 
-    fun saveTabsSettingsToPrefs() {
-
+    fun saveTabsSettingsToFile() {
         FileWriter(Utilities.getAppDir().absolutePath+ File.separator+"tabs.json").use({ file ->
-            file.write(tabs!!.asJSON.toString())
+            file.write(tabs.asJSON.toString())
         })
-
-        /*
-        val sprefs = con!!.getSharedPreferences("mytabs", Context.MODE_PRIVATE)
-        val ed = sprefs.edit()
-
-        ed.putString("tabs", tabs!!.asJSON.toString())
-        if (!ed.commit()) {
-            Log.d(javaClass.name, "commit failure!!!")
-        }
-        */
     }
 
     fun setSettingsFromString(text: String) {
-
-
         settingsVersion = 0
-
         val jsonReader = JsonReader(StringReader(text))
         try {
             jsonReader.beginObject()
@@ -223,9 +186,11 @@ class AppSettings private constructor()
                     "view_compact_mode" -> view_compact_mode = jsonReader.nextBoolean()
                     "view_magnify" -> view_magnify = jsonReader.nextInt()
 
+                    "server_mode" -> server_mode = jsonReader.nextBoolean()
+
                     "tabs" -> {
-                        tabs!!.items.clear()
-                        tabs!!.setFromJSON(jsonReader)
+                        tabs.items.clear()
+                        tabs.setFromJSON(jsonReader)
                     }
 
                     "dashboards" -> {
@@ -244,7 +209,7 @@ class AppSettings private constructor()
         }
 
         if (settingsVersion == 0) {
-            saveTabsSettingsToPrefs()
+            saveTabsSettingsToFile()
         }
     }
 
